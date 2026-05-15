@@ -30,8 +30,17 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# env files — 절대 커밋 금지. 서버 .env.local 에 직접 작성
+.env
+.env.*
+!.env.example
+
+# Claude Code: 프로젝트 settings.json 은 공유, local 은 개인 — 커밋 금지
+.claude/settings.local.json
+
+# 한글 파일명 원본 로고 — public/logo-tbit-white.png 로 복사됨
+/으뜸정보기술로고*.png
+/kiro_logo.jpg
 
 # vercel
 .vercel
