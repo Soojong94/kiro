@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { NavBar } from "@/components/NavBar";
 import { getSession } from "@/lib/auth";
 import { loginAction } from "./actions";
 
@@ -32,10 +33,9 @@ export default async function AdminLoginPage({
   const msg = errorMessage(errCode, sec);
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center px-5"
-      style={{ background: "#fafafa" }}
-    >
+    <div className="min-h-screen flex flex-col" style={{ background: "#fafafa" }}>
+      <NavBar hideAuth />
+      <div className="flex-1 flex items-center justify-center px-5 py-10">
       <div className="w-full max-w-[360px]">
         <div className="text-center mb-8">
           <h1 className="text-[24px] font-bold tracking-tight text-[#16191f]">
@@ -92,7 +92,7 @@ export default async function AdminLoginPage({
 
           <button
             type="submit"
-            className="w-full py-2.5 rounded-md bg-[#232f3e] text-white text-[14px] font-semibold hover:bg-[#161e2d] transition-colors"
+            className="w-full py-2.5 rounded-md bg-[#232f3e] text-white text-[14px] font-semibold hover:bg-[#161e2d] transition-colors cursor-pointer"
           >
             로그인
           </button>
@@ -101,6 +101,7 @@ export default async function AdminLoginPage({
         <p className="mt-6 text-center text-[11.5px] text-[#95a5b8]">
           관리자 전용 페이지입니다
         </p>
+      </div>
       </div>
     </div>
   );
