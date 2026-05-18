@@ -25,5 +25,6 @@ ENV PORT=3000
 
 EXPOSE 3000
 
-# next start — Turbopack 빌드 결과 (.next) 를 그대로 서빙
-CMD ["sh", "-c", "next start -H 0.0.0.0 -p 3000"]
+# next 바이너리 직접 경로로 호출 (sh PATH 에 ./node_modules/.bin 없음).
+# exec form 사용 — SIGTERM 깔끔히 전달.
+CMD ["node_modules/.bin/next", "start", "-H", "0.0.0.0", "-p", "3000"]
