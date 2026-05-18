@@ -37,10 +37,12 @@ async function main() {
   const hash = await hashPassword(TEST_PASSWORD);
   console.log(`  · 학생 insert 중...`);
 
-  for (let i = 0; i < students.length; i++) {
-    const st = students[i];
-    const localIdx = (i % 20) + 1; // 학교 내 순번 (1~20)
-    const username = `${st.schoolId}.${localIdx}`; // 예: snu.1
+  // 학교별 순번 카운터 — mock 의 학교당 학생 수 변경에도 안전.
+  const perSchool = new Map<string, number>();
+  for (const st of students) {
+    const localIdx = (perSchool.get(st.schoolId) ?? 0) + 1;
+    perSchool.set(st.schoolId, localIdx);
+    const username = `${st.schoolId}.${localIdx}`; // 예: snu.1, kaist.1
     const email = `${username}@school.test`;
     await pool.query(
       `INSERT INTO students
