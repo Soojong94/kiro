@@ -12,6 +12,11 @@ RUN npm ci
 # 소스 전체 (.dockerignore 에서 node_modules, .next 등 제외됨)
 COPY . .
 
+# 빌드 시점 placeholder — Next.js static-generation 단계에서 lib/auth.ts 의 env 검증을
+# 통과시키기 위한 더미값. 컨테이너 실행 시 docker compose env_file 이 실제 .env 값으로
+# 덮어씁니다. 빌드 결과물(.next) 에는 어떤 시크릿도 박히지 않습니다.
+ENV SESSION_COOKIE_PASSWORD="build_time_dummy_placeholder_at_least_32_chars_xx"
+
 # Next.js 프로덕션 빌드
 RUN npm run build
 
