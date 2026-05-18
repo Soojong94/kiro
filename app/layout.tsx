@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
+// OG / Twitter 이미지 절대 URL 해석용. 운영은 APP_BASE_URL, 로컬은 localhost fallback.
+const baseUrl = process.env.APP_BASE_URL ?? "http://localhost:3000";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(baseUrl),
   title: "AWS Kiro 사용 현황 · 통합 랭킹",
   description: "회사가 조직에 제공한 AWS Kiro 사용 현황 — 학생 토큰 사용량 / 출석 통합 랭킹",
 };
