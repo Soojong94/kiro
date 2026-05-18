@@ -28,6 +28,9 @@ git push origin main   # 또는 master
 ```bash
 ssh -i <your-key>.pem ubuntu@<server-ip>
 
+# git 이 없는 fresh 이미지 대비
+sudo apt-get update && sudo apt-get install -y git
+
 # repo 클론 (private 이면 deploy key 또는 PAT 필요)
 git clone https://github.com/Soojong94/kiro.git
 cd kiro

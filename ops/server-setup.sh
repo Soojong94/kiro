@@ -12,8 +12,10 @@ apt-get update -y
 apt-get upgrade -y
 
 echo "[setup] 기본 도구 + fail2ban + nginx + certbot"
+# 방화벽: AWS Security Group 으로 처리하므로 ufw 는 설치 안 함 (Docker 와 충돌도 흔함).
 apt-get install -y \
-  curl ca-certificates gnupg ufw fail2ban \
+  curl ca-certificates gnupg fail2ban \
+  git dos2unix \
   nginx \
   certbot python3-certbot-nginx \
   dnsutils
@@ -35,13 +37,9 @@ else
   echo "[setup] Docker 이미 설치됨"
 fi
 
-# ── 방화벽 (ufw) ────────────────────────────────────────────────
-echo "[setup] 방화벽 규칙 (ufw)"
-ufw allow 22/tcp  comment "SSH"
-ufw allow 80/tcp  comment "HTTP (certbot + nginx)"
-ufw allow 443/tcp comment "HTTPS"
-ufw --force enable
-ufw status verbose
+# ── 방화벽: AWS Security Group 으로 외부 진입 통제. OS 레벨 ufw 안 씀.
+#    inbound 22 (SSH), 80 (HTTP/certbot), 443 (HTTPS) 만 SG 에서 열어두면 충분.
+#    3000 은 docker compose 가 127.0.0.1 로만 바인딩해서 외부 도달 불가.
 
 # ── SSH 비밀번호 로그인 활성화 ─────────────────────────────────
 echo ""
