@@ -1,0 +1,19 @@
+# 개발용 이미지 — 소스는 bind mount, node_modules 는 이미지 내부.
+# 실서버 배포용은 별도 multi-stage Dockerfile 로 분리 예정.
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+# 의존성 레이어 (캐시 효율 — 소스 변경 시 npm ci 안 다시 돌도록)
+COPY package.json package-lock.json ./
+RUN npm ci
+
+EXPOSE 3000
+
+# 윈도우 bind mount 는 inotify 안 먹음 → 폴링 사용 (Webpack & Chokidar 모두)
+ENV WATCHPACK_POLLING=true \
+    CHOKIDAR_USEPOLLING=true
+
+# -H 0.0.0.0 : 컨테이너 외부(호스트의 localhost:3000)에서 접근 가능하도록
+CMD ["npm", "run", "dev", "--", "-H", "0.0.0.0"]

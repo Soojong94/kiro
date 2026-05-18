@@ -3,43 +3,69 @@
 
 import type { DailyUsage, School, Student } from "./types";
 
+// 20개 mock 학교 — 필터/검색 UX 테스트용 규모.
 const SCHOOLS: School[] = [
-  { id: "snu", name: "서울대학교", kind: "university" },
-  { id: "kaist", name: "KAIST", kind: "university" },
-  { id: "postech", name: "포항공과대학교", kind: "university" },
-  { id: "minjok", name: "민족사관고등학교", kind: "high_school" },
-  { id: "daewon", name: "대원외국어고등학교", kind: "high_school" },
+  { id: "snu",       name: "서울대학교",        kind: "university"  },
+  { id: "kaist",     name: "KAIST",              kind: "university"  },
+  { id: "postech",   name: "포항공과대학교",    kind: "university"  },
+  { id: "yonsei",    name: "연세대학교",        kind: "university"  },
+  { id: "korea",     name: "고려대학교",        kind: "university"  },
+  { id: "hanyang",   name: "한양대학교",        kind: "university"  },
+  { id: "sungkyun",  name: "성균관대학교",      kind: "university"  },
+  { id: "sogang",    name: "서강대학교",        kind: "university"  },
+  { id: "chungang",  name: "중앙대학교",        kind: "university"  },
+  { id: "kyunghee",  name: "경희대학교",        kind: "university"  },
+  { id: "ewha",      name: "이화여자대학교",    kind: "university"  },
+  { id: "unist",     name: "UNIST",              kind: "university"  },
+  { id: "minjok",    name: "민족사관고등학교",  kind: "high_school" },
+  { id: "daewon",    name: "대원외국어고",      kind: "high_school" },
+  { id: "hafs",      name: "외대부고",          kind: "high_school" },
+  { id: "hana",      name: "하나고등학교",      kind: "high_school" },
+  { id: "sangsan",   name: "상산고등학교",      kind: "high_school" },
+  { id: "dongbuk",   name: "동북권",            kind: "region"      },
+  { id: "seonam",    name: "서남권",            kind: "region"      },
+  { id: "joongbu",   name: "중부권",            kind: "region"      },
 ];
 
-// 학교별 학생 명단 (실명은 mock — 실제로는 CSV 도착 후 admin이 매핑).
-// 학교당 20명 × 5학교 = 100명.
-const STUDENTS_BY_SCHOOL: Record<string, string[]> = {
-  snu: [
-    "김민준", "이서연", "박지호", "최예준", "정수아", "남궁민준", "선우하늘",
-    "김지우", "이도현", "박서아", "최하준", "정유진", "강민서", "윤채영",
-    "장준호", "한예진", "문서윤", "오현우", "신지민", "권태양",
-  ],
-  kaist: [
-    "조하은", "강도윤", "윤시우", "장하린", "임채원", "한지민", "김재훈",
-    "이하늘", "박세빈", "최도윤", "정윤서", "강수아", "윤하경", "장태리",
-    "한승민", "문지환", "오시현", "신주원", "권유나", "송재이",
-  ],
-  postech: [
-    "오서윤", "서지안", "신유나", "권민서", "김건우", "이채민", "박시원",
-    "최지안", "정하늘", "강서준", "윤가람", "장은우", "한수빈", "문예나",
-    "오지호", "김수현", "이지율", "박하람", "김하은", "정태연",
-  ],
-  minjok: [
-    "황도현", "안하준", "송예린", "전유준", "김주안", "이태민", "박하윤",
-    "최은서", "정시아", "강지율", "윤서윤", "장지안", "한도윤", "문하늘",
-    "오지환", "백승호", "남효주", "독고진", "사공유리", "제갈현우",
-  ],
-  daewon: [
-    "홍시아", "백지윤", "고예원", "문지후", "김도하", "이서영", "박민채",
-    "최예린", "정한울", "강은우", "윤지유", "장재희", "한채아", "문나래",
-    "오태경", "유시현", "추다온", "변하영", "노아윤", "구본혁",
-  ],
-};
+// 결정론적 한국 이름 생성기 — 성 풀 × 이름 풀 + 학교/순번 시드
+const SURNAMES = [
+  "김", "이", "박", "최", "정", "강", "윤", "장", "한", "임",
+  "오", "신", "권", "황", "안", "송", "전", "홍", "양", "조",
+];
+const GIVEN_NAMES = [
+  "민준", "서연", "지호", "예준", "수아", "도현", "시우", "하준", "채원", "지민",
+  "재훈", "하늘", "세빈", "도윤", "윤서", "수아", "하경", "태리", "승민", "지환",
+  "시현", "주원", "유나", "재이", "서윤", "지안", "유나", "민서", "건우", "채민",
+  "시원", "지안", "하늘", "서준", "가람", "은우", "수빈", "예나", "지호", "수현",
+];
+
+function pickDeterministic<T>(pool: T[], schoolIdx: number, slot: number, offset: number): T {
+  // 결정론적 인덱스 (학교마다 다른 분포, 같은 학교 내에선 안정적)
+  return pool[(schoolIdx * 31 + slot * 17 + offset * 7) % pool.length];
+}
+
+function generateStudentNames(schoolIdx: number, count: number): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  let attempt = 0;
+  while (out.length < count && attempt < count * 5) {
+    const surname = pickDeterministic(SURNAMES, schoolIdx, out.length, attempt);
+    const given = pickDeterministic(GIVEN_NAMES, schoolIdx, out.length, attempt * 3);
+    const name = surname + given;
+    if (!seen.has(name)) {
+      seen.add(name);
+      out.push(name);
+    }
+    attempt++;
+  }
+  return out;
+}
+
+// 학교당 10명. 학교 0번부터 순서대로 user_id 1~10, 11~20, ...
+const STUDENTS_PER_SCHOOL = 10;
+const STUDENTS_BY_SCHOOL: Record<string, string[]> = Object.fromEntries(
+  SCHOOLS.map((s, idx) => [s.id, generateStudentNames(idx, STUDENTS_PER_SCHOOL)]),
+);
 
 const MODELS = ["claude-opus-4-7", "claude-sonnet-4-6", "claude-haiku-4-5"];
 
@@ -63,7 +89,13 @@ export function getMockSchools(): School[] {
   return SCHOOLS;
 }
 
+// 학생 목록은 정적이므로 모듈 레벨 캐시.
+let _students: Student[] | null = null;
+// usage 는 daysBack 별로 캐시.
+const _usageCache = new Map<number, DailyUsage[]>();
+
 export function getMockStudents(): Student[] {
+  if (_students) return _students;
   const out: Student[] = [];
   let i = 1;
   for (const school of SCHOOLS) {
@@ -73,20 +105,31 @@ export function getMockStudents(): Student[] {
         userId: makeUserId(i++),
         schoolId: school.id,
         realName: name,
-        cohort: school.kind === "university" ? "2026 학부생" : "2026-1학년",
+        cohort:
+          school.kind === "university"
+            ? "2026 학부생"
+            : school.kind === "high_school"
+              ? "2026-1학년"
+              : "2026 참여자",
       });
     }
   }
-  return out;
+  _students = out;
+  return _students;
 }
 
-export function getMockDailyUsage(daysBack = 30, today = new Date()): DailyUsage[] {
+// today 인자는 mock 특성상 무시하고 daysBack 기준 고정 시드로 캐시.
+export function getMockDailyUsage(daysBack = 30, _today = new Date()): DailyUsage[] {
+  const cached = _usageCache.get(daysBack);
+  if (cached) return cached;
   const students = getMockStudents();
   const rows: DailyUsage[] = [];
   const rng = makeRng(42);
 
+  // 캐시용으로 오늘 날짜 고정 (2026-05-15). 실 데이터 연결 시 제거.
+  const ref = new Date("2026-05-15");
   for (let d = 1; d <= daysBack; d++) {
-    const dt = new Date(today);
+    const dt = new Date(ref);
     dt.setUTCDate(dt.getUTCDate() - d);
     const dateStr = dt.toISOString().slice(0, 10);
 
@@ -125,5 +168,6 @@ export function getMockDailyUsage(daysBack = 30, today = new Date()): DailyUsage
     }
   }
 
+  _usageCache.set(daysBack, rows);
   return rows;
 }

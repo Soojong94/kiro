@@ -3,7 +3,8 @@
 
 export type ClientType = "KIRO_IDE" | "KIRO_CLI" | "PLUGIN";
 export type SubscriptionTier = "Pro" | "Pro+" | "Power";
-export type SchoolKind = "high_school" | "university";
+// 조직 유형. 학교 외에도 지역·기관 단위 사용을 위해 region 포함.
+export type SchoolKind = "high_school" | "university" | "region";
 
 export interface School {
   id: string;          // 안정적인 슬러그. URL 쿼리에 그대로 노출.

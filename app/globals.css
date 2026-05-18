@@ -3,37 +3,49 @@
 :root {
   color-scheme: light;
 
-  --color-bg: #f4f5f7;
+  /* AWS 톤 (Cloudscape design tokens 기반) */
+  --color-bg: #fafafa;
   --color-surface: #ffffff;
   --color-elev: #ffffff;
-  --color-border: #eaecef;
-  --color-border-soft: #f1f3f5;
+  --color-border: #d5dbdb;
+  --color-border-soft: #eaeded;
 
-  --color-text: #191f28;
-  --color-text-secondary: #4e5968;
-  --color-text-tertiary: #8b95a1;
-  --color-text-quaternary: #b0b8c1;
+  --color-text: #16191f;
+  --color-text-secondary: #414d5c;
+  --color-text-tertiary: #5f6b7a;
+  --color-text-quaternary: #95a5b8;
 
-  --color-brand: #3182f6;
-  --color-brand-strong: #1b64da;
-  --color-brand-soft: #e8f3ff;
+  /* AWS link blue (Cloudscape) — active/selection */
+  --color-brand: #0972d3;
+  --color-brand-strong: #033160;
+  --color-brand-soft: #f2f8fd;
 
-  --color-gold: #ffb020;
-  --color-gold-soft: #fff7e1;
+  /* AWS signature orange — 1위/하이라이트 */
+  --color-accent: #ec7211;
+  --color-accent-strong: #c75c00;
+  --color-accent-soft: #fef3eb;
 
-  /* Kiro 보라 (kiro_logo.jpg 배경 색조에 맞춤) */
-  --color-kiro-bg: #8b6cf2;
-  --color-kiro-bg-strong: #6e4be0;
+  --color-gold: #ec7211;
+  --color-gold-soft: #fef3eb;
+
+  /* NavBar — AWS Squid Ink 다크 네이비. 보라 Kiro 로고 사각형이 이 위에서 또렷이 도드라짐. */
+  --color-nav-bg: #232f3e;
+  --color-nav-bg-strong: #161e2d;
+  --color-nav-text: #ffffff;
+  --color-nav-text-soft: #d1d5db;
+
+  --color-kiro-bg: #232f3e;
+  --color-kiro-bg-strong: #161e2d;
   --color-kiro-accent: #ffffff;
   --color-kiro-text: #ffffff;
-  --color-kiro-text-soft: #e7dffd;
+  --color-kiro-text-soft: #d1d5db;
 }
 
 @theme inline {
-  --color-bg: #f4f5f7;
+  --color-bg: #fafafa;
   --color-surface: #ffffff;
-  --color-text: #191f28;
-  --color-brand: #3182f6;
+  --color-text: #16191f;
+  --color-brand: #0972d3;
   --font-sans:
     "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont,
     "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
@@ -42,12 +54,12 @@
 
 html {
   color-scheme: light;
-  background: #f4f5f7;
+  background: #fafafa;
 }
 
 body {
-  background: #f4f5f7;
-  color: #191f28;
+  background: #fafafa;
+  color: #16191f;
   font-family:
     "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont,
     "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic",
