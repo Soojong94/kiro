@@ -6,21 +6,40 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "ingest": "tsx --env-file=.env.local ingest/sync.ts",
+    "bootstrap-admin": "tsx --env-file=.env.local scripts/bootstrap-admin.ts",
+    "check-s3": "tsx --env-file=.env.local scripts/check-s3.ts",
+    "check-smtp": "tsx --env-file=.env.local scripts/check-smtp.ts",
+    "seed-test-student": "tsx --env-file=.env.local scripts/seed-test-student.ts",
+    "seed-mock-full": "tsx --env-file=.env.local scripts/seed-mock-full.ts",
+    "reset-mock": "tsx --env-file=.env.local scripts/reset-mock.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1047.0",
+    "@aws-sdk/client-sts": "^3.1047.0",
+    "@node-rs/argon2": "^2.0.2",
+    "csv-parse": "^6.2.1",
+    "iron-session": "^8.0.4",
     "next": "16.2.6",
+    "nodemailer": "^8.0.7",
+    "pg": "^8.20.0",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "recharts": "^3.8.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/nodemailer": "^8.0.0",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
+    "tsx": "^4.22.0",
     "typescript": "^5"
   }
 }

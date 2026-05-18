@@ -1,14 +1,27 @@
-import { KpiCard } from "@/components/KpiCard";
+import { DateRangePicker } from "@/components/DateRangePicker";
+import { LoginGateCard } from "@/components/LoginGateCard";
 import { MetricToggle } from "@/components/MetricToggle";
+import { MyRankCard } from "@/components/MyRankCard";
 import { NavBar } from "@/components/NavBar";
 import { PeriodToggle } from "@/components/PeriodToggle";
 import { RankingTable } from "@/components/RankingTable";
 import { SchoolSearch } from "@/components/SchoolSearch";
-import { getMockDailyUsage, getMockSchools, getMockStudents } from "@/lib/mock";
-import { computeKpi, computeRanking, type Metric, type Period } from "@/lib/ranking";
+import { loadDailyUsage, loadSchools, loadStudents } from "@/lib/db-data";
+import {
+  computeRanking,
+  periodWindow,
+  type Metric,
+  type Period,
+} from "@/lib/ranking";
+import { getStudentSession } from "@/lib/student-auth";
+import Link from "next/link";
+import { redirect } from "next/navigation";
 
-const PERIODS = new Set<Period>(["yesterday", "7d", "30d"]);
+const PERIODS = new Set<Period>(["yesterday", "7d", "this_month", "last_month", "custom"]);
 const METRICS = new Set<Metric>(["credits", "attendance"]);
+
+// YYYY-MM-DD 정규식. 잘못된 입력 들어오면 무시.
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 function pick<T extends string>(
   v: string | string[] | undefined,
@@ -19,9 +32,19 @@ function pick<T extends string>(
   return s && allowed.has(s as T) ? (s as T) : fallback;
 }
 
+function pickStr(v: string | string[] | undefined): string | undefined {
+  const s = Array.isArray(v) ? v[0] : v;
+  return s ? s : undefined;
+}
+
 function fmtKstDate(yyyymmdd: string): string {
   const [y, m, d] = yyyymmdd.split("-");
   return `${y}년 ${Number(m)}월 ${Number(d)}일`;
+}
+
+function fmtRange(from: string, to: string): string {
+  if (from === to) return fmtKstDate(from);
+  return `${fmtKstDate(from)} ~ ${fmtKstDate(to)}`;
 }
 
 export default async function PublicDashboard({
@@ -29,74 +52,121 @@ export default async function PublicDashboard({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  // ── 학생 세션 게이트 ───────────────────────────────────────────────
+  const studentSession = await getStudentSession();
+  const loggedIn = !!studentSession.userId;
+  if (loggedIn && studentSession.mustChangePassword) {
+    redirect("/change-password");
+  }
+
   const sp = await searchParams;
-  const period = pick(sp.period, PERIODS, "7d");
+  const period = pick(sp.period, PERIODS, "this_month");
   const metric = pick(sp.metric, METRICS, "credits");
-  const schoolParam = (Array.isArray(sp.school) ? sp.school[0] : sp.school) ?? "all";
+  // 로그인 학생은 본교가 디폴트 — '전체 조직' 보려면 드롭다운에서 직접 선택
+  const defaultSchool =
+    loggedIn && studentSession.schoolId ? studentSession.schoolId : "all";
+  const schoolParam = (Array.isArray(sp.school) ? sp.school[0] : sp.school) ?? defaultSchool;
+
+  const fromRaw = pickStr(sp.from);
+  const toRaw = pickStr(sp.to);
+  const fromValid = fromRaw && DATE_RE.test(fromRaw) ? fromRaw : undefined;
+  const toValid = toRaw && DATE_RE.test(toRaw) ? toRaw : undefined;
+  const custom =
+    period === "custom" && fromValid && toValid
+      ? { from: fromValid, to: toValid }
+      : undefined;
 
   const now = new Date();
-  const usage = getMockDailyUsage(30, now);
-  const students = getMockStudents();
-  const schools = getMockSchools();
+  const [usage, students, schools] = await Promise.all([
+    loadDailyUsage(30),
+    loadStudents(),
+    loadSchools(),
+  ]);
   const school =
     schoolParam === "all" || schools.some((s) => s.id === schoolParam) ? schoolParam : "all";
 
-  const kpi = computeKpi(usage, now);
-  const rank = computeRanking(metric, usage, students, schools, period, school, 100, now);
+  const baseDate = periodWindow("yesterday", now).to;
+  const dateRange = periodWindow(period, now, custom);
+  const rank = computeRanking(metric, usage, students, schools, period, school, 100, now, custom);
+  // 본인 순위 핀 카드 — 현재 필터 결과에 본인이 들어있을 때만 노출
+  const myRow = loggedIn && studentSession.userId
+    ? rank.find((r) => r.userId === studentSession.userId)
+    : undefined;
 
-  const otherParamsExceptMetric = { school, period };
+  const otherParamsExceptMetric = { school, period, ...(fromValid ? { from: fromValid } : {}), ...(toValid ? { to: toValid } : {}) };
   const otherParamsExceptPeriod = { school, metric };
-  const otherParamsExceptSchool = { metric, period };
+  const otherParamsExceptSchool = { metric, period, ...(fromValid ? { from: fromValid } : {}), ...(toValid ? { to: toValid } : {}) };
+  const otherParamsForDate = { school, metric };
 
   const metricLabel = metric === "credits" ? "토큰 사용량" : "출석";
   const periodLabel =
-    period === "yesterday" ? "어제" : period === "7d" ? "최근 7일" : "최근 30일";
+    period === "yesterday"
+      ? "어제"
+      : period === "7d"
+        ? "최근 7일"
+        : period === "this_month"
+          ? "이번 달"
+          : period === "last_month"
+            ? "지난 달"
+            : custom
+              ? fmtRange(dateRange.from, dateRange.to)
+              : "사용자 지정";
   const scopeLabel =
     school === "all"
-      ? "전체 학교"
-      : schools.find((s) => s.id === school)?.name ?? "선택 학교";
+      ? "전체 조직"
+      : schools.find((s) => s.id === school)?.name ?? "선택 조직";
+
+  const pickerFrom = fromValid ?? dateRange.from;
+  const pickerTo = toValid ?? dateRange.to;
+  const yesterdayStr = periodWindow("yesterday", now).to;
 
   return (
-    <div className="min-h-full" style={{ background: "#f4f5f7" }}>
+    <div className="min-h-full" style={{ background: "#fafafa" }}>
       <NavBar />
 
       <main className="mx-auto max-w-5xl px-5 pt-8 pb-16 sm:px-6 sm:pt-10 lg:pt-12">
-        <header className="mb-10 lg:mb-14 text-center">
-          <p className="text-[14px] sm:text-[15px] font-bold tracking-wide text-[#3182f6] mb-3">
-            AWS KIRO · 사용 현황
-          </p>
-          <h1 className="text-[36px] sm:text-[44px] lg:text-[56px] font-bold tracking-tight leading-[1.1] text-[#191f28]">
-            학교 통합 랭킹
-          </h1>
-          <p className="mt-5 text-[15px] sm:text-[16px] text-[#4e5968]">
-            <strong className="text-[#191f28]">{fmtKstDate(kpi.baseDate)}</strong> 기준
-            <span className="ml-1.5 text-[#8b95a1]">· 매일 오전 11:30 갱신</span>
-          </p>
-          <p className="mt-2 text-[13px] text-[#b0b8c1]">
-            현재 표시 값은 임시 목업입니다. 각 학교 Kiro 리포트 연결 시 실제 값으로 자동 전환.
-          </p>
+        <header className="mb-10 lg:mb-14">
+          {loggedIn && (
+            <div className="flex justify-end mb-4">
+              <Link
+                href="/champions"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-[#232f3e] text-white text-[13px] font-semibold hover:bg-[#161e2d] transition-colors"
+              >
+                🏆 월별 챔피언
+              </Link>
+            </div>
+          )}
+          <div className="text-center">
+            <h1 className="text-[32px] sm:text-[40px] lg:text-[48px] font-bold tracking-tight leading-[1.15] text-[#16191f]">
+              AWS KIRO · 사용량 통합랭킹
+            </h1>
+            <p className="mt-5 text-[15px] sm:text-[16px] text-[#414d5c]">
+              <strong className="text-[#16191f]">{fmtKstDate(baseDate)}</strong> 기준
+              <span className="ml-1.5 text-[#5f6b7a]">· 매일 오전 11:30 갱신</span>
+            </p>
+            <p className="mt-2 text-[13px] text-[#95a5b8]">
+              현재 표시 값은 임시 목업입니다. 각 조직 Kiro 리포트 연결 시 실제 값으로 자동 전환.
+            </p>
+          </div>
         </header>
 
-        <section className="grid grid-cols-2 gap-2.5 mb-6 sm:grid-cols-4 sm:gap-3 lg:mb-8">
-          <KpiCard label="참여 학교" value={kpi.participatingSchools} unit="곳" accent />
-          <KpiCard label="누적 사용 학생" value={kpi.cumulativeStudents} unit="명" />
-          <KpiCard label="어제 활성 학생" value={kpi.activeYesterday} unit="명" />
-          <KpiCard label="어제 총 크레딧" value={kpi.totalCreditsYesterday} unit="credit" />
-        </section>
-
-        <section className="rounded-2xl bg-white p-4 sm:p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] ring-1 ring-[#f1f3f5]">
-          {/* 헤더 행: lg에서 3균등 그리드(좌 타이틀 / 가운데 학교 검색 / 우 토글) */}
-          <div className="flex flex-col gap-3 mb-5 lg:grid lg:grid-cols-3 lg:items-center">
+        {!loggedIn ? (
+          <LoginGateCard message="랭킹을 보려면 로그인이 필요합니다." />
+        ) : (
+        <>
+        <section className="rounded-lg bg-white p-4 sm:p-6 shadow-[0_1px_2px_rgba(0,28,36,0.05)] ring-1 ring-[#eaeded]">
+          {/* 헤더 행: lg에서 3균등 그리드(좌 타이틀 / 가운데 조직 검색 / 우 토글) */}
+          <div className="flex flex-col gap-3 mb-3 lg:grid lg:grid-cols-3 lg:items-center">
             <div className="min-w-0 text-center lg:text-left">
-              <h2 className="text-[16px] sm:text-[18px] font-bold text-[#191f28] tracking-tight truncate">
+              <h2 className="text-[16px] sm:text-[18px] font-bold text-[#16191f] tracking-tight truncate">
                 {scopeLabel} · {metricLabel} 랭킹
               </h2>
-              <p className="text-[11.5px] sm:text-[12.5px] text-[#8b95a1] mt-0.5">
+              <p className="text-[11.5px] sm:text-[12.5px] text-[#5f6b7a] mt-0.5 truncate">
                 {periodLabel} 기준 · 상위 {rank.length}명
               </p>
             </div>
 
-            {/* 가운데: 학교 드롭다운 */}
+            {/* 가운데: 조직 드롭다운 */}
             <div className="flex justify-center min-w-0">
               <SchoolSearch
                 schools={schools}
@@ -116,10 +186,35 @@ export default async function PublicDashboard({
             </div>
           </div>
 
-          <RankingTable rows={rank} unitLabel={metric === "credits" ? "credit" : "일"} />
-        </section>
+          {/* period=custom 일 때만 달력 입력 노출 */}
+          {period === "custom" && (
+            <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end p-3 rounded-md bg-[#f2f8fd] ring-1 ring-[#d5dbdb]">
+              <span className="text-[12px] font-semibold text-[#033160] sm:mr-1">
+                기간 선택
+              </span>
+              <DateRangePicker
+                from={pickerFrom}
+                to={pickerTo}
+                maxDate={yesterdayStr}
+                otherParams={otherParamsForDate}
+              />
+            </div>
+          )}
 
-        <footer className="mt-10 text-center text-[11.5px] text-[#b0b8c1]">
+          {myRow && (
+            <MyRankCard row={myRow} unitLabel={metric === "credits" ? "credit" : "일"} />
+          )}
+
+          <RankingTable
+            rows={rank}
+            unitLabel={metric === "credits" ? "credit" : "일"}
+            highlightUserId={studentSession.userId}
+          />
+        </section>
+        </>
+        )}
+
+        <footer className="mt-10 text-center text-[11.5px] text-[#95a5b8]">
           이름은 개인정보 보호를 위해 마스킹되어 표시됩니다 · powered by AWS Kiro
         </footer>
       </main>

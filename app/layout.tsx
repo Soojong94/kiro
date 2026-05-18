@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "AWS Kiro 사용 현황 · 학생 랭킹",
-  description: "회사가 학교에 제공한 AWS Kiro 사용 현황 — 학생 토큰 사용량 / 출석 통합 랭킹",
+  title: "AWS Kiro 사용 현황 · 통합 랭킹",
+  description: "회사가 조직에 제공한 AWS Kiro 사용 현황 — 학생 토큰 사용량 / 출석 통합 랭킹",
 };
 
 export default function RootLayout({
@@ -22,7 +22,7 @@ export default function RootLayout({
       </head>
       <body
         className="min-h-full flex flex-col"
-        style={{ background: "#f4f5f7", color: "#191f28" }}
+        style={{ background: "#fafafa", color: "#16191f" }}
       >
         {children}
       </body>

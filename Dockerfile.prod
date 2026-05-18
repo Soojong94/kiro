@@ -1,0 +1,24 @@
+# 운영용 단일 스테이지 이미지.
+# 멀티스테이지보다 단순성 우선 — npm scripts (ingest, seed) 도 같은 이미지에서 돌릴 수 있도록 devDeps (tsx) 포함.
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+# 의존성 (devDeps 포함 — tsx 가 ingest/seed 스크립트에 필요)
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# 소스 전체 (.dockerignore 에서 node_modules, .next 등 제외됨)
+COPY . .
+
+# Next.js 프로덕션 빌드
+RUN npm run build
+
+ENV NODE_ENV=production
+ENV PORT=3000
+
+EXPOSE 3000
+
+# next start — Turbopack 빌드 결과 (.next) 를 그대로 서빙
+CMD ["sh", "-c", "next start -H 0.0.0.0 -p 3000"]

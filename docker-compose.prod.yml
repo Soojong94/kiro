@@ -1,0 +1,45 @@
+# 운영 환경용 compose. dev 와 분리해 별도 파일로 관리.
+# 실행: docker compose -f docker-compose.prod.yml up -d --build
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: kiro-pg
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: kiro
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: kiro
+      TZ: Asia/Seoul
+    volumes:
+      - kiro_pg_data:/var/lib/postgresql/data
+      # 최초 컨테이너 부팅 시 스키마 자동 적용. 이후엔 무시.
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kiro -d kiro"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  next:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    image: kiro-next:prod
+    container_name: kiro-next
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      # 컨테이너 내부 hostname (postgres) 으로 DB 접근
+      DATABASE_URL: "postgres://kiro:${DB_PASSWORD}@postgres:5432/kiro"
+      NODE_ENV: production
+    ports:
+      # 외부 노출 X — nginx 가 127.0.0.1:3000 으로만 프록시.
+      - "127.0.0.1:3000:3000"
+
+volumes:
+  kiro_pg_data:

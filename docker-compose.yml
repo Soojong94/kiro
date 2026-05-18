@@ -1,0 +1,54 @@
+# 로컬 개발용 PostgreSQL — 실서버는 systemd로 띄움.
+# 실행: docker compose up -d
+# 정지: docker compose down
+# 데이터 초기화: docker compose down -v
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: kiro-pg
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: kiro
+      POSTGRES_PASSWORD: kiro_dev_pw
+      POSTGRES_DB: kiro
+      TZ: Asia/Seoul
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - kiro_pg_data:/var/lib/postgresql/data
+      # 컨테이너 최초 실행 시 자동 적용. 이후엔 무시 (멱등 스크립트라도).
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kiro -d kiro"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  next:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: kiro-next
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      # SESSION_COOKIE_PASSWORD, AWS_* 등은 호스트 .env.local 에서 가져옴
+      - .env.local
+    environment:
+      # 컨테이너 안에서는 postgres 서비스명으로 접근 (.env.local의 127.0.0.1 덮어씀)
+      DATABASE_URL: postgres://kiro:kiro_dev_pw@postgres:5432/kiro
+      NODE_ENV: development
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      # 소스는 호스트에서 bind — 코드 수정 즉시 반영
+      - .:/app
+      # node_modules, .next 는 익명 볼륨으로 호스트 디렉토리 가림
+      - /app/node_modules
+      - /app/.next
+
+volumes:
+  kiro_pg_data:

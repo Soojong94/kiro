@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- AWS Squid Ink 다크 네이비 배경 (NavBar 와 동일) -->
+  <rect width="32" height="32" rx="6" fill="#232f3e"/>
+
+  <!-- 굵은 K — 정렬: 수직 바 + 위/아래 대각선 -->
+  <g stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <line x1="10" y1="7"    x2="10" y2="22"/>
+    <line x1="10" y1="14.5" x2="22" y2="7"/>
+    <line x1="10" y1="14.5" x2="22" y2="22"/>
+  </g>
+
+  <!-- AWS 오렌지 액센트 바 (하단) -->
+  <rect x="6" y="25" width="20" height="2.5" rx="1.25" fill="#ec7211"/>
+</svg>
