@@ -40,6 +40,11 @@ services:
     ports:
       # 외부 노출 X — nginx 가 127.0.0.1:3000 으로만 프록시.
       - "127.0.0.1:3000:3000"
+    volumes:
+      # 호스트 .env 를 컨테이너 .env.local 로 read-only 마운트.
+      # tsx --env-file=.env.local 가 npm run ingest/seed/bootstrap 등에서 동작하도록.
+      # 런타임 next 서버는 docker compose env_file 로 이미 env 로드됨 — 이 마운트는 npm script 용.
+      - ./.env:/app/.env.local:ro
 
 volumes:
   kiro_pg_data:
