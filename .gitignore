@@ -46,12 +46,14 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# IDE / OS
+# IDE / OS / 도구 백업
 .DS_Store
 .vscode/
 .idea/
 *.swp
 *.swo
+.$*.bkp
+*~
 
 # Claude Code: settings.local.json 만 개인. settings.json 은 공유.
 .claude/settings.local.json
