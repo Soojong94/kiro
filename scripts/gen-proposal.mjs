@@ -92,7 +92,7 @@ function table(headers, rows, widths) {
 const children = [
   h1("AWS Kiro 사용량 통합 랭킹 대시보드"),
   p(
-    "회사가 학교/조직에 제공한 AWS Kiro 사용 현황을 학생 단위로 집계해 공정하고 가시적인 랭킹을 제공하는 웹 서비스. 학생들이 본인 위치를 즉시 확인하고, 운영자(TBT 및 각 학교 어드민)는 조직별 활용도와 학생별 활동을 한눈에 본다.",
+    "회사가 학교/조직에 제공한 AWS Kiro 사용 현황을 학생 단위로 집계해 공정하고 가시적인 랭킹을 제공하는 웹 서비스. 학생들이 본인 위치를 즉시 확인하고, 운영자(TBIT 및 각 학교 어드민)는 조직별 활용도와 학생별 활동을 한눈에 본다.",
     { align: AlignmentType.JUSTIFIED, after: 200 },
   ),
 
@@ -142,14 +142,14 @@ const children = [
 
   h2("관리자 대시보드 (사내)"),
   p(
-    "목적 — TBT 본사(슈퍼)와 각 학교 운영자(학교 어드민)가 자기 권한 범위 안에서 학생 계정 발급, 학교 정보 관리, 사용 현황 조회를 수행.",
+    "목적 — TBIT 본사(슈퍼)와 각 학교 운영자(학교 어드민)가 자기 권한 범위 안에서 학생 계정 발급, 학교 정보 관리, 사용 현황 조회를 수행.",
     { after: 100 },
   ),
   h3("역할 구분 (RBAC)"),
   table(
     ["역할", "권한"],
     [
-      ["슈퍼 어드민 (TBT)", "모든 조직 데이터 조회. 학교 추가/삭제. 어드민 계정 발급. 전체 학생 계정 관리."],
+      ["슈퍼 어드민 (TBIT)", "모든 조직 데이터 조회. 학교 추가/삭제. 어드민 계정 발급. 전체 학생 계정 관리."],
       ["학교 어드민", "본교 학생 계정 발급/재발급/제거. 본교 대시보드 조회. 학교/어드민 메뉴 노출 안 됨."],
     ],
     [25, 75],
@@ -172,13 +172,15 @@ const children = [
   bullet("스냅샷 테이블 (랭킹/KPI/챔피언) → 매일 덮어쓰기 + 지난 달은 월초 1회 캐시 (재계산 부담 없음)."),
   bullet("학생/학교 정리는 어드민의 명시적 액션에만 영향. 인제스트는 이 두 데이터 절대 안 건드림."),
   bullet("삭제 정책 일관성 — 학생 개별 / 학교 단위 '학생 전체 삭제' / 학교 '완전 삭제' 세 액션 모두 학생 행과 그 학생들의 사용량을 한 트랜잭션으로 묶어서 처리. orphan usage 남기지 않음."),
+  bullet("Identity Center 자동 sync — AWS IAM Identity Center 의 그룹/사용자를 schools/students 로 일괄 import. 학교 어드민이 학생을 수기 입력할 필요 없음. 신규 학생만 랜덤 초기 비번 자동 생성, samples/credentials CSV 로 출력 (어드민이 학생에 전달, 첫 로그인 시 강제 변경)."),
+  bullet("사내용 학교(TBIT) 표시 — schools.is_internal=true 인 학교는 학생 공개 페이지의 '전체 조직' 뷰 및 챔피언에서 제외. 어드민에는 그대로 노출되어 관리 가능."),
   bullet("CSV 원본 로컬 아카이브 — 인제스트가 S3 에서 받은 매일 CSV 를 /data/csv-archive 에 학교/날짜별로 저장, 1년 보관 후 자동 정리. DB 손상 또는 특정 학생 데이터 복원 시 재인제스트 가능."),
   bullet("페이지는 미리 계산된 스냅샷만 읽음 → 클라이언트 부담 최소화."),
   bullet("PostgreSQL named volume + 일일 pg_dump 백업 권장."),
 ];
 
 const doc = new Document({
-  creator: "TBT",
+  creator: "TBIT",
   title: "Kiro 통합 랭킹 대시보드 제안서 요약",
   styles: {
     default: { document: { run: { font: FONT, size: 22 } } },
@@ -194,6 +196,6 @@ const doc = new Document({
 });
 
 const buf = await Packer.toBuffer(doc);
-const out = "c:/tmp/Kiro-제안서-요약-v6.docx";
+const out = "c:/tmp/Kiro-제안서-요약-v7.docx";
 writeFileSync(out, buf);
 console.log("✓ 생성 완료:", out, `(${buf.length} bytes)`);

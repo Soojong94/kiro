@@ -65,7 +65,7 @@ export default async function AdminDashboardPage({
   const now = new Date();
   const [usage, allSchools] = await Promise.all([
     loadDailyUsage(60),
-    loadSchools(),
+    loadSchools({ includeInternal: true }), // 어드민은 사내 포함 전부 본다
   ]);
   // 학교 어드민은 본교만 (필터 무시). super 는 검색/구분 필터 적용.
   let schools = allSchools;

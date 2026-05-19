@@ -7,24 +7,32 @@
 import { pool } from "./db";
 import type { DailyUsage, School, Student } from "./types";
 
-export async function loadSchools(): Promise<School[]> {
+// includeInternal=false (기본) — TBIT 같은 사내용 학교는 제외 (학생 페이지/공개 랭킹 용).
+// includeInternal=true — 어드민 페이지에서 사내 학교도 보일 때.
+export async function loadSchools(
+  opts: { includeInternal?: boolean } = {},
+): Promise<School[]> {
+  const where = opts.includeInternal ? "" : "WHERE is_internal = false";
   const { rows } = await pool.query<{
     id: string;
     name: string;
     kind: School["kind"];
+    is_internal: boolean;
     aws_account_id: string | null;
     s3_bucket: string | null;
     s3_prefix: string | null;
     aws_region: string;
     role_arn: string | null;
   }>(
-    `SELECT id, name, kind, aws_account_id, s3_bucket, s3_prefix, aws_region, role_arn
-       FROM schools ORDER BY name`,
+    `SELECT id, name, kind, is_internal,
+            aws_account_id, s3_bucket, s3_prefix, aws_region, role_arn
+       FROM schools ${where} ORDER BY name`,
   );
   return rows.map((r) => ({
     id: r.id,
     name: r.name,
     kind: r.kind,
+    isInternal: r.is_internal,
     awsAccountId: r.aws_account_id ?? undefined,
     s3Bucket: r.s3_bucket ?? undefined,
     s3Prefix: r.s3_prefix ?? undefined,

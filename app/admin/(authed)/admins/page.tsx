@@ -158,7 +158,7 @@ export default async function AdminsPage({
               className="w-full px-2.5 py-1.5 rounded-md ring-1 ring-[#d5dbdb] bg-white text-[13px]"
             >
               <option value="school">학교 어드민</option>
-              <option value="super">슈퍼 어드민 (TBT)</option>
+              <option value="super">슈퍼 어드민 (TBIT)</option>
             </select>
           </FormField>
           <FormField label="학교 (school 역할 필수)">

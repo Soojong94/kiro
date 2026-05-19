@@ -9,6 +9,8 @@ CREATE TABLE IF NOT EXISTS schools (
   id             text PRIMARY KEY,
   name           text NOT NULL,
   kind           text NOT NULL CHECK (kind IN ('high_school', 'university', 'region')),
+  -- 사내용 학교 (TBIT 등) 표시 — 랭킹/공개 페이지에서 제외, 어드민에는 그대로 노출.
+  is_internal    boolean NOT NULL DEFAULT false,
   aws_account_id text,
   s3_bucket      text,
   s3_prefix      text,
