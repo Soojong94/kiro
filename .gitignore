@@ -43,6 +43,9 @@ backup-*.sql
 samples/credentials/
 samples/raw/
 
+# CSV 원본 아카이브 — 운영 서버에서 365일 보관, 로컬엔 둘 필요 없음
+/data/csv-archive/
+
 # 로그
 *.log
 npm-debug.log*

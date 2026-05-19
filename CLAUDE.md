@@ -44,7 +44,6 @@ kiro/
 │   ├── api/                   route handlers (랭킹/통계 조회 API)
 │   └── layout.tsx
 ├── components/        ← UI 컴포넌트 (Tailwind v4, Toss 톤)
-│   ├── KpiCard.tsx        ✅
 │   ├── MetricToggle.tsx   ✅ (토큰/출석 전환)
 │   ├── PeriodToggle.tsx   ✅ (어제/7일/30일, URL searchParams 기반, no client JS)
 │   ├── RankingTable.tsx   ✅
@@ -55,7 +54,6 @@ kiro/
 │   ├── mask.ts        ← 학생명 마스킹 ("김민준" → "김*준")  ✅
 │   ├── types.ts       ← CSV 컬럼 ↔ TS 타입 매핑                ✅
 │   ├── ranking.ts     ← 토큰/출석 랭킹 집계 + KPI               ✅
-│   ├── mock.ts        ← 첫 CSV 전까지 사용. db.ts 붙으면 제거    ✅(임시)
 │   └── kiro/          ← S3 client, CSV parser — 미구현
 ├── ingest/
 │   ├── sync.ts        ← 메인 진입 (cron이 호출)
