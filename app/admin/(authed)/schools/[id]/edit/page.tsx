@@ -10,9 +10,14 @@ const FORM_ERRORS: Record<string, string> = {
   name_required: "이름은 필수입니다.",
   kind_invalid: "구분 값이 올바르지 않습니다.",
   account_id_format: "AWS 계정 ID는 12자리 숫자여야 합니다.",
-  has_students: "학생이 등록된 학교입니다. 강제 삭제 옵션을 확인하세요.",
-  has_usage: "사용량 데이터가 있어 일반 삭제 불가. 완전 삭제(purge) 옵션 사용하세요.",
+  has_students: "학생이 등록된 학교는 일반 삭제 불가.",
+  has_usage: "사용량 데이터가 있는 학교는 일반 삭제 불가.",
   purge_confirm: "완전 삭제 확인 — 학교 id 를 정확히 입력하세요.",
+  no_students: "삭제할 학생이 없습니다.",
+};
+
+const OK_MSGS: Record<string, string> = {
+  students_wiped: "이 학교의 학생 행이 모두 삭제되었습니다. 학교/사용량 데이터는 보존됨.",
 };
 
 export default async function EditSchoolPage({
@@ -28,8 +33,10 @@ export default async function EditSchoolPage({
   const { id } = await params;
   const sp = await searchParams;
   const errCode = Array.isArray(sp.error) ? sp.error[0] : sp.error;
+  const okCode = Array.isArray(sp.ok) ? sp.ok[0] : sp.ok;
   const studentCountStr = Array.isArray(sp.count) ? sp.count[0] : sp.count;
   const errMsg = errCode ? FORM_ERRORS[errCode] ?? "오류가 발생했습니다." : null;
+  const okMsg = okCode ? OK_MSGS[okCode] ?? null : null;
 
   const { rows } = await pool.query<{
     id: string;
@@ -78,6 +85,11 @@ export default async function EditSchoolPage({
         </p>
       </header>
 
+      {okMsg && (
+        <div className="mb-4 rounded-md bg-[#f1f8f5] ring-1 ring-[#9bd4b7] px-3 py-2 text-[12.5px] text-[#1d6638]">
+          {okMsg}
+        </div>
+      )}
       {errMsg && (
         <div className="mb-4 rounded-md bg-[#fdf2f0] ring-1 ring-[#f1c0bf] px-3 py-2 text-[12.5px] text-[#7c2c2c]">
           {errMsg}
@@ -158,16 +170,17 @@ export default async function EditSchoolPage({
         </form>
       </section>
 
-      {/* 위험 영역 — 데이터 양에 따라 3단계 옵션 */}
+      {/* 위험 영역 */}
       <section className="rounded-lg bg-white p-5 ring-1 ring-[#f1c0bf] space-y-5">
-        <h2 className="text-[14px] font-bold text-[#7c2c2c]">위험 영역 — 학교 삭제</h2>
+        <h2 className="text-[14px] font-bold text-[#7c2c2c]">위험 영역</h2>
 
-        {counts.usage === 0 && counts.students === 0 && (
-          <>
+        {/* 데이터 둘 다 없을 때만 단순 학교 삭제 노출 */}
+        {counts.students === 0 && counts.usage === 0 ? (
+          <div>
             <p className="text-[12.5px] text-[#414d5c]">
-              학생/사용량 데이터가 없습니다. 안전하게 삭제 가능합니다.
+              학생/사용량 데이터가 없습니다. 안전하게 학교를 삭제할 수 있습니다.
             </p>
-            <form action={deleteSchoolAction}>
+            <form action={deleteSchoolAction} className="mt-3">
               <input type="hidden" name="id" value={school.id} />
               <button
                 type="submit"
@@ -176,60 +189,65 @@ export default async function EditSchoolPage({
                 학교 삭제
               </button>
             </form>
+          </div>
+        ) : (
+          <>
+            {/* 1) 학생만 wipe — 학교/사용량 보존 */}
+            <div className="rounded-md bg-white ring-1 ring-[#f1c0bf] p-3">
+              <h3 className="text-[13px] font-bold text-[#7c2c2c]">학생 전체 삭제</h3>
+              <p className="mt-1.5 text-[12.5px] text-[#414d5c] leading-relaxed">
+                이 학교의 학생 <strong>{counts.students}명</strong> 모두 삭제. 학교 정보와 사용량
+                데이터 (daily_usage {counts.usage.toLocaleString()}건) 는 <strong>그대로 보존</strong>됩니다.
+                <br />
+                <span className="text-[11px] text-[#5f6b7a]">
+                  학생 교체(졸업/이탈 후 신입생 재등록) 용도. 동일 Kiro user_id 로 재등록 시
+                  과거 사용량과 자동 재매핑.
+                </span>
+              </p>
+              <form action={deleteSchoolAction} className="mt-3">
+                <input type="hidden" name="id" value={school.id} />
+                <input type="hidden" name="students_only" value="1" />
+                <button
+                  type="submit"
+                  disabled={counts.students === 0}
+                  className="px-3 py-1.5 rounded-md bg-[#d13212] text-white text-[12.5px] font-semibold hover:bg-[#9d2b15] transition-colors cursor-pointer disabled:bg-[#95a5b8] disabled:cursor-not-allowed"
+                >
+                  학생 {counts.students}명 삭제
+                </button>
+              </form>
+            </div>
+
+            {/* 2) 완전 삭제 — 모든 흔적 wipe (학교 id 타이핑 필수) */}
+            <div className="rounded-md bg-[#fdf2f0] ring-1 ring-[#d13212] p-3">
+              <h3 className="text-[13px] font-bold text-[#7c2c2c]">완전 삭제 (purge)</h3>
+              <p className="mt-1.5 text-[12.5px] text-[#7c2c2c] leading-relaxed">
+                학교 + 학생 {counts.students}명 + 사용량 {counts.usage.toLocaleString()}건 + 모델별 사용량 +
+                스냅샷 + 인제스트 로그까지 모두 삭제.
+                <br />
+                <strong className="block mt-1">
+                  되돌릴 수 없으며 모든 누적 이력이 사라집니다.
+                </strong>
+              </p>
+              <form action={deleteSchoolAction} className="mt-3 flex flex-wrap items-center gap-2">
+                <input type="hidden" name="id" value={school.id} />
+                <input type="hidden" name="purge" value="1" />
+                <input
+                  type="text"
+                  name="confirm"
+                  required
+                  placeholder={`확인: '${school.id}' 입력`}
+                  autoComplete="off"
+                  className="px-2.5 py-1.5 rounded-md ring-1 ring-[#d13212] bg-white text-[12.5px] font-mono text-[#16191f] focus:outline-none focus:ring-2 focus:ring-[#7c2c2c]"
+                />
+                <button
+                  type="submit"
+                  className="px-3 py-1.5 rounded-md bg-[#7c2c2c] text-white text-[12.5px] font-semibold hover:bg-[#5e1f1f] transition-colors cursor-pointer"
+                >
+                  완전 삭제
+                </button>
+              </form>
+            </div>
           </>
-        )}
-
-        {counts.usage === 0 && counts.students > 0 && (
-          <div>
-            <p className="text-[12.5px] text-[#414d5c]">
-              학생 <strong>{counts.students}명</strong>이 등록되어 있습니다. 학생까지 함께 삭제합니다.
-              <br />
-              <span className="text-[11px] text-[#7c2c2c]">
-                ⚠ 학생 로그인 정보 모두 삭제. 되돌릴 수 없음.
-              </span>
-            </p>
-            <form action={deleteSchoolAction} className="mt-3">
-              <input type="hidden" name="id" value={school.id} />
-              <input type="hidden" name="force" value="1" />
-              <button
-                type="submit"
-                className="px-3 py-1.5 rounded-md bg-[#d13212] text-white text-[12.5px] font-semibold hover:bg-[#9d2b15] transition-colors cursor-pointer"
-              >
-                학생 {counts.students}명 + 학교 삭제
-              </button>
-            </form>
-          </div>
-        )}
-
-        {counts.usage > 0 && (
-          <div className="rounded-md bg-[#fdf2f0] ring-1 ring-[#d13212] p-3">
-            <p className="text-[12.5px] text-[#7c2c2c] leading-relaxed">
-              🔥 <strong>완전 삭제 (purge)</strong> — 사용량 데이터 {counts.usage.toLocaleString()}건 +
-              학생 {counts.students}명 + 스냅샷 + 인제스트 로그 까지 모두 삭제.
-              <br />
-              <strong className="block mt-1">
-                되돌릴 수 없으며, 모든 통계와 누적 이력이 사라집니다.
-              </strong>
-            </p>
-            <form action={deleteSchoolAction} className="mt-3 flex flex-wrap items-center gap-2">
-              <input type="hidden" name="id" value={school.id} />
-              <input type="hidden" name="purge" value="1" />
-              <input
-                type="text"
-                name="confirm"
-                required
-                placeholder={`삭제 확인: '${school.id}' 입력`}
-                autoComplete="off"
-                className="px-2.5 py-1.5 rounded-md ring-1 ring-[#d13212] bg-white text-[12.5px] font-mono text-[#16191f] focus:outline-none focus:ring-2 focus:ring-[#7c2c2c]"
-              />
-              <button
-                type="submit"
-                className="px-3 py-1.5 rounded-md bg-[#7c2c2c] text-white text-[12.5px] font-semibold hover:bg-[#5e1f1f] transition-colors cursor-pointer"
-              >
-                완전 삭제
-              </button>
-            </form>
-          </div>
         )}
       </section>
     </main>

@@ -149,7 +149,7 @@ const children = [
     [
       ["대시보드", "조직별 비교 막대 차트 (총 크레딧 / 활성 학생 / 총 메시지 / 1인당 평균). 기간·메트릭 토글. 학교 검색/구분 필터. 데이터 테이블."],
       ["학생 계정", "계정 발급 폼 (학교·실명·이메일·초기 비번). CSV 일괄 등록 (예시 템플릿 다운로드 → 엑셀에서 수정 → 업로드, 행별 결과). 비번 재발급 / 제거. 실명·아이디·이메일 검색 + 학교 필터."],
-      ["학교 (슈퍼만)", "신규 학교 등록 (id·이름·구분·AWS 계정 ID·S3 버킷/prefix·리전·Role ARN). 학교 정보 편집. 위험 영역 강제 삭제 (학생/사용량 데이터 보호 정책 적용)."],
+      ["학교 (슈퍼만)", "신규 학교 등록 (id·이름·구분·AWS 계정 ID·S3 버킷/prefix·리전·Role ARN) + 정보 편집. 위험 영역에 두 가지 destructive 옵션: ① '학생 전체 삭제' — 학교·사용량 데이터 보존, 학생만 wipe (교체용). ② '완전 삭제' — 학교 + 학생 + 사용량 + 스냅샷 + 인제스트 로그 일괄 wipe, 학교 id 타이핑 확인 필수. 모든 액션 audit_log 자동 기록."],
       ["관리자 (슈퍼만)", "어드민 추가 (슈퍼/학교 역할). 비번 재발급. 본인/마지막 슈퍼 삭제 차단. 역할·학교·검색 필터."],
       ["감사", "모든 계정 변경 액션 audit_log 자동 기록 (행위자·액션·타깃·시각)."],
     ],
@@ -159,15 +159,10 @@ const children = [
   h2("데이터 보관 및 안전성"),
   bullet("daily_usage / model_usage / students / admins → INSERT/UPSERT 만 사용, 정기 삭제 없음. 영구 누적."),
   bullet("스냅샷 테이블 (랭킹/KPI/챔피언) → 매일 덮어쓰기 + 지난 달은 월초 1회 캐시 (재계산 부담 없음)."),
-  bullet("학생 로그인 정보는 어드민 명시적 액션에만 영향. 학교 삭제 시 사용량 데이터 있으면 차단 (데이터 보호)."),
+  bullet("학생 로그인 정보는 어드민 명시적 액션에만 영향. 학생 행을 지워도 daily_usage 는 보존되므로 통계 / 누적 기여도 유지 (재등록 시 자동 재매핑)."),
+  bullet("학교 삭제는 두 모드 분리 — '학생 전체 삭제'는 사용량 보존, '완전 삭제'만이 사용량까지 wipe (학교 id 타이핑 확인 필수, super 전용)."),
   bullet("페이지는 미리 계산된 스냅샷만 읽음 → 클라이언트 부담 최소화."),
   bullet("PostgreSQL named volume + 일일 pg_dump 백업 권장."),
-
-  h2("다음 단계"),
-  bullet("Kiro 첫 일일 CSV 수신 후 학교별 S3 매핑 검증 및 cron 등록 (매일 02:30 UTC)."),
-  bullet("'/admin/discover' 페이지 — 인제스트 후 미매핑 Kiro UserId 옆에 실명·아이디 입력해 일괄 학생 계정 생성."),
-  bullet("Cross-account S3 가이드 적용 — 학교가 자기 계정 S3 버킷에 우리 ARN 허용 또는 IAM Role + STS AssumeRole."),
-  bullet("운영 모니터링 — UptimeRobot 등으로 /healthz 폴링, 인제스트 실패 알림 채널."),
 ];
 
 const doc = new Document({
@@ -187,6 +182,6 @@ const doc = new Document({
 });
 
 const buf = await Packer.toBuffer(doc);
-const out = "c:/tmp/Kiro-제안서-요약.docx";
+const out = "c:/tmp/Kiro-제안서-요약-v3.docx";
 writeFileSync(out, buf);
 console.log("✓ 생성 완료:", out, `(${buf.length} bytes)`);
