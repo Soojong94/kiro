@@ -7,11 +7,30 @@
 // cron 예시 (매일 02:30 UTC = 11:30 KST):
 //   30 2 * * * cd /opt/kiro && npm run ingest >> /var/log/kiro-ingest.log 2>&1
 
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { pool } from "@/lib/db";
 import { downloadCsvFiles } from "./s3";
 import { parseCsv } from "./parse";
 import { computeAndStoreSnapshots } from "./snapshot";
 import type { School } from "@/lib/types";
+
+// CSV 원본 보관 경로. 기본 1년 보관 (별도 cleanup 스크립트가 정리).
+// 컨테이너 환경에선 volume mount: ./data/csv-archive → /data/csv-archive
+const ARCHIVE_ROOT = process.env.CSV_ARCHIVE_DIR ?? "/data/csv-archive";
+
+async function archiveCsv(
+  school: School,
+  dateStr: string,
+  key: string,
+  buffer: Buffer,
+): Promise<void> {
+  // 디렉토리 구조: <root>/<school_id>/<YYYY-MM-DD>/<original-filename>
+  const filename = path.basename(key);
+  const dir = path.join(ARCHIVE_ROOT, school.id, dateStr);
+  await mkdir(dir, { recursive: true });
+  await writeFile(path.join(dir, filename), buffer);
+}
 
 async function main() {
   const dateArg = (() => {
@@ -101,6 +120,13 @@ async function ingestSchool(
     let totalRows = 0;
 
     for (const { key, buffer } of files) {
+      // 원본 CSV 로컬 아카이브 (실패해도 인제스트 자체는 계속)
+      try {
+        await archiveCsv(school, dateStr, key, buffer);
+      } catch (err) {
+        console.warn(`[sync] archive 실패 (무시) school=${school.id} key=${key}:`, err);
+      }
+
       const parsed = await parseCsv(buffer);
       totalRows += parsed.length;
 

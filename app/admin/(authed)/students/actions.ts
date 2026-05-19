@@ -122,7 +122,8 @@ export async function resetStudentPasswordAction(formData: FormData): Promise<vo
   redirect("/admin/students?ok=reset");
 }
 
-// 학생 행 삭제 (CASCADE 로 관련 데이터 같이 정리됨)
+// 학생 + 그 학생의 사용량/모델 데이터 일괄 삭제 (트랜잭션).
+// 학교 단위 '학생 전체 삭제' 와 일관 — 학생만 지우고 orphan usage 남기는 케이스 없음.
 export async function deleteStudentAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
 
@@ -134,19 +135,48 @@ export async function deleteStudentAction(formData: FormData): Promise<void> {
 
   assertSchoolScope(admin.role, admin.schoolId, schoolId);
 
-  const { rowCount } = await pool.query(
-    `DELETE FROM students WHERE school_id = $1 AND user_id = $2`,
+  // 삭제 전 카운트 — 감사 로그용
+  const { rows } = await pool.query<{ usage: string; model_usage: string }>(
+    `SELECT
+       (SELECT count(*) FROM daily_usage WHERE school_id = $1 AND user_id = $2)::text AS usage,
+       (SELECT count(*) FROM model_usage WHERE school_id = $1 AND user_id = $2)::text AS model_usage`,
     [schoolId, userId],
   );
-  if (!rowCount) {
-    redirect("/admin/students?error=not_found");
+  const usageCount = Number(rows[0].usage);
+  const modelUsageCount = Number(rows[0].model_usage);
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      `DELETE FROM model_usage WHERE school_id = $1 AND user_id = $2`,
+      [schoolId, userId],
+    );
+    await client.query(
+      `DELETE FROM daily_usage WHERE school_id = $1 AND user_id = $2`,
+      [schoolId, userId],
+    );
+    const { rowCount } = await client.query(
+      `DELETE FROM students WHERE school_id = $1 AND user_id = $2`,
+      [schoolId, userId],
+    );
+    if (!rowCount && usageCount === 0 && modelUsageCount === 0) {
+      await client.query("ROLLBACK");
+      redirect("/admin/students?error=not_found");
+    }
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
   }
 
   await recordAudit(
     admin.username,
     "student.delete",
     `${schoolId}/${userId}`,
-    null,
+    { usage_deleted: usageCount, model_usage_deleted: modelUsageCount },
   );
 
   revalidatePath("/admin/students");
