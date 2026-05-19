@@ -45,6 +45,10 @@ services:
       # tsx --env-file=.env.local 가 npm run ingest/seed/bootstrap 등에서 동작하도록.
       # 런타임 next 서버는 docker compose env_file 로 이미 env 로드됨 — 이 마운트는 npm script 용.
       - ./.env:/app/.env.local:ro
+      # CSV 원본 아카이브 — 인제스트가 매일 S3 에서 받은 원본 파일을 그대로 보관.
+      # 1년 보관 (cleanup-archive.sh 가 365일 경과 파일 정리).
+      # 데이터 손실 / 학생 데이터 복원 / 감사 용도.
+      - ./data/csv-archive:/data/csv-archive
 
 volumes:
   kiro_pg_data:

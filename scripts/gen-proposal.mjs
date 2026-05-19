@@ -103,12 +103,23 @@ const children = [
       ["기술 스택", "Next.js 16 (App Router) · TypeScript · React 19 · Tailwind v4 · PostgreSQL 16"],
       ["인프라", "AWS EC2 · Docker Compose · nginx 리버스 프록시 · Let's Encrypt SSL"],
       ["인증", "Argon2id 해시 + iron-session 쿠키 · 학생 / 어드민 분리 세션"],
-      ["데이터 흐름", "S3 (Kiro CSV) → 인제스트(일 1회 cron) → daily_usage 누적 → 스냅샷 → 페이지"],
       ["보안", "RBAC(슈퍼/학교) · IP 기반 rate limit · 감사 로그 · HTTPS 강제"],
-      ["배포", "단일 서버, Docker 이미지로 컨테이너화. systemd 무관."],
+      ["배포", "단일 서버, Docker 이미지로 컨테이너화. 도메인 https://kiro.tbit.co.kr"],
     ],
     [25, 75],
   ),
+
+  h2("데이터 흐름"),
+  p(
+    "여러 학교의 AWS 계정 S3 버킷에서 매일 Kiro 사용량 CSV 를 풀링 → 단일 서버 DB 에 영구 누적 → 스냅샷으로 미리 계산 → 페이지는 결과만 SELECT. 클라이언트 측 연산 0, 무거운 합산은 인제스트 1회로 끝.",
+    { after: 100 },
+  ),
+  bullet("① 학교별 S3 — 본인 AWS 계정 버킷에 Kiro 가 매일 02:00 UTC CSV 떨굼. cross-account 접근은 버킷 정책 또는 IAM Role + STS AssumeRole."),
+  bullet("② Ingest Worker — 02:30 UTC cron 으로 S3 풀링 → CSV 파싱 → daily_usage UPSERT (멱등). 학교별 실행 결과는 ingest_runs 에 기록."),
+  bullet("③ DB 원천 (PostgreSQL) — daily_usage / model_usage / students / schools / admins / audit_log. INSERT/UPSERT 만 사용, 정기 삭제 없음."),
+  bullet("④ 스냅샷 캐시 — 인제스트 직후 ranking_snapshot / kpi_snapshot / monthly_champion_snapshot 갱신. 이번 달은 매일, 지난 달은 월초 1회만 캐시."),
+  bullet("⑤ Next.js SSR — 페이지 요청 시 스냅샷 SELECT 한 줄로 HTML 생성. nginx + Let's Encrypt 가 HTTPS 종단 처리."),
+  bullet("⑥ 브라우저 — 학생: 본교 랭킹 + 본인 순위 / 어드민: 조직 비교 차트 + 학생·학교 CRUD. (상세는 docs/data-flow.drawio 참조)"),
 
   h2("학생 대시보드 (공개 측)"),
   p(
@@ -148,7 +159,7 @@ const children = [
     ["페이지", "기능"],
     [
       ["대시보드", "조직별 비교 막대 차트 (총 크레딧 / 활성 학생 / 총 메시지 / 1인당 평균). 기간·메트릭 토글. 학교 검색/구분 필터. 데이터 테이블."],
-      ["학생 계정", "계정 발급 폼 (학교·실명·이메일·초기 비번). CSV 일괄 등록 (예시 템플릿 다운로드 → 엑셀에서 수정 → 업로드, 행별 결과). 비번 재발급 / 제거. 실명·아이디·이메일 검색 + 학교 필터."],
+      ["학생 계정", "계정 발급 폼 (학교·실명·이메일·초기 비번). CSV 일괄 등록 (예시 템플릿 다운로드 → 엑셀에서 수정 → 업로드, 행별 결과). 비번 재발급. 제거 시 학생 행 + 그 학생의 사용량·모델별 사용량 일괄 wipe (트랜잭션, 감사 로그 기록). 실명·아이디·이메일 검색 + 학교 필터."],
       ["학교 (슈퍼만)", "신규 학교 등록 (id·이름·구분·AWS 계정 ID·S3 버킷/prefix·리전·Role ARN) + 정보 편집. 위험 영역에 두 가지 destructive 옵션: ① '학생 전체 삭제' — 학생 + 사용량 + 모델별 사용량 + 랭킹/챔피언 스냅샷 wipe, 학교와 인제스트 로그만 보존 (학기 교체용). ② '완전 삭제' — 위 모두 + 학교 + 인제스트 로그까지 wipe, 학교 id 타이핑 확인 필수. 모든 액션 audit_log 자동 기록."],
       ["관리자 (슈퍼만)", "어드민 추가 (슈퍼/학교 역할). 비번 재발급. 본인/마지막 슈퍼 삭제 차단. 역할·학교·검색 필터."],
       ["감사", "모든 계정 변경 액션 audit_log 자동 기록 (행위자·액션·타깃·시각)."],
@@ -159,8 +170,9 @@ const children = [
   h2("데이터 보관 및 안전성"),
   bullet("daily_usage / model_usage / students / admins → INSERT/UPSERT 만 사용, 정기 삭제 없음. 영구 누적."),
   bullet("스냅샷 테이블 (랭킹/KPI/챔피언) → 매일 덮어쓰기 + 지난 달은 월초 1회 캐시 (재계산 부담 없음)."),
-  bullet("학생/학교 정리는 super 어드민의 명시적 액션에만 영향. 인제스트는 이 두 데이터 절대 안 건드림."),
-  bullet("학교 단위 정리는 두 모드 — '학생 전체 삭제'는 학생+사용량 묶음으로 wipe하되 학교 유지, '완전 삭제'는 학교까지 포함 wipe (학교 id 타이핑 확인 필수)."),
+  bullet("학생/학교 정리는 어드민의 명시적 액션에만 영향. 인제스트는 이 두 데이터 절대 안 건드림."),
+  bullet("삭제 정책 일관성 — 학생 개별 / 학교 단위 '학생 전체 삭제' / 학교 '완전 삭제' 세 액션 모두 학생 행과 그 학생들의 사용량을 한 트랜잭션으로 묶어서 처리. orphan usage 남기지 않음."),
+  bullet("CSV 원본 로컬 아카이브 — 인제스트가 S3 에서 받은 매일 CSV 를 /data/csv-archive 에 학교/날짜별로 저장, 1년 보관 후 자동 정리. DB 손상 또는 특정 학생 데이터 복원 시 재인제스트 가능."),
   bullet("페이지는 미리 계산된 스냅샷만 읽음 → 클라이언트 부담 최소화."),
   bullet("PostgreSQL named volume + 일일 pg_dump 백업 권장."),
 ];
@@ -182,6 +194,6 @@ const doc = new Document({
 });
 
 const buf = await Packer.toBuffer(doc);
-const out = "c:/tmp/Kiro-제안서-요약-v4.docx";
+const out = "c:/tmp/Kiro-제안서-요약-v6.docx";
 writeFileSync(out, buf);
 console.log("✓ 생성 완료:", out, `(${buf.length} bytes)`);
