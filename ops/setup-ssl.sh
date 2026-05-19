@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# kiro-tbit.kro.kr 도메인 → Let's Encrypt 인증서 발급 + nginx HTTPS 활성화.
+# kiro.tbit.co.kr 도메인 → Let's Encrypt 인증서 발급 + nginx HTTPS 활성화.
 #
 # 사전 조건:
-#   1) DNS A 레코드: kiro-tbit.kro.kr → <server-ip> (전파 확인 필요)
+#   1) DNS A 레코드: kiro.tbit.co.kr → <server-ip> (전파 확인 필요)
 #   2) nginx 가 설치되어 있고 sites-enabled/kiro 가 활성화되어 80 포트 응답 중
 #   3) AWS Security Group 80 + 443 inbound 허용
 #
@@ -10,7 +10,7 @@
 
 set -euo pipefail
 
-DOMAIN="kiro-tbit.kro.kr"
+DOMAIN="kiro.tbit.co.kr"
 EMAIL="oksk@tbit.co.kr"
 
 echo "[ssl] DNS 전파 확인 — $DOMAIN"
