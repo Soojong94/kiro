@@ -17,7 +17,7 @@ const FORM_ERRORS: Record<string, string> = {
 };
 
 const OK_MSGS: Record<string, string> = {
-  students_wiped: "이 학교의 학생 행이 모두 삭제되었습니다. 학교/사용량 데이터는 보존됨.",
+  students_wiped: "학생과 그 사용량 데이터가 모두 삭제되었습니다. 학교는 보존됨.",
 };
 
 export default async function EditSchoolPage({
@@ -192,16 +192,17 @@ export default async function EditSchoolPage({
           </div>
         ) : (
           <>
-            {/* 1) 학생만 wipe — 학교/사용량 보존 */}
+            {/* 1) 학생 + 학생들이 만든 데이터 모두 wipe. 학교는 보존. */}
             <div className="rounded-md bg-white ring-1 ring-[#f1c0bf] p-3">
               <h3 className="text-[13px] font-bold text-[#7c2c2c]">학생 전체 삭제</h3>
               <p className="mt-1.5 text-[12.5px] text-[#414d5c] leading-relaxed">
-                이 학교의 학생 <strong>{counts.students}명</strong> 모두 삭제. 학교 정보와 사용량
-                데이터 (daily_usage {counts.usage.toLocaleString()}건) 는 <strong>그대로 보존</strong>됩니다.
+                학생 <strong>{counts.students}명</strong> + 사용량{" "}
+                <strong>{counts.usage.toLocaleString()}건</strong> + 모델별 사용량 + 랭킹/챔피언 스냅샷
+                일괄 삭제. <strong>학교와 인제스트 로그는 보존</strong>되어 신입생을 다시 받을 수 있습니다.
                 <br />
                 <span className="text-[11px] text-[#5f6b7a]">
-                  학생 교체(졸업/이탈 후 신입생 재등록) 용도. 동일 Kiro user_id 로 재등록 시
-                  과거 사용량과 자동 재매핑.
+                  학기 종료/학년 교체 시 깔끔하게 정리하는 용도. 동일 Kiro user_id 로 다시 들어와도
+                  새 학생으로 인식됩니다.
                 </span>
               </p>
               <form action={deleteSchoolAction} className="mt-3">
@@ -209,10 +210,9 @@ export default async function EditSchoolPage({
                 <input type="hidden" name="students_only" value="1" />
                 <button
                   type="submit"
-                  disabled={counts.students === 0}
-                  className="px-3 py-1.5 rounded-md bg-[#d13212] text-white text-[12.5px] font-semibold hover:bg-[#9d2b15] transition-colors cursor-pointer disabled:bg-[#95a5b8] disabled:cursor-not-allowed"
+                  className="px-3 py-1.5 rounded-md bg-[#d13212] text-white text-[12.5px] font-semibold hover:bg-[#9d2b15] transition-colors cursor-pointer"
                 >
-                  학생 {counts.students}명 삭제
+                  학생 {counts.students}명 + 사용량 삭제
                 </button>
               </form>
             </div>
