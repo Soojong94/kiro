@@ -43,6 +43,7 @@ const OK_MSGS: Record<string, string> = {
   created: "학교가 추가되었습니다.",
   updated: "학교 정보가 갱신되었습니다.",
   deleted: "학교가 삭제되었습니다.",
+  purged: "학교 + 학생 + 사용량 데이터 모두 삭제되었습니다.",
 };
 
 export default async function SchoolsPage({
