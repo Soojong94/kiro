@@ -160,14 +160,31 @@ export async function deleteSchoolAction(formData: FormData): Promise<void> {
     runs: Number(countRows[0].runs),
   };
 
-  // ── students_only: 학생만 삭제, 학교/사용량 보존 ──────────────────
+  // ── students_only: 학생 + 학생들이 만든 데이터 wipe. 학교 + 인제스트 로그 보존.
+  //    "이 학교 학생들의 흔적 정리" 한 묶음. 학교는 살아있어서 신입생 재등록 가능.
   if (studentsOnly) {
-    if (counts.students === 0) {
+    if (counts.students === 0 && counts.usage === 0) {
       redirect(`/admin/schools/${id}/edit?error=no_students`);
     }
-    await pool.query(`DELETE FROM students WHERE school_id = $1`, [id]);
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query(`DELETE FROM ranking_snapshot          WHERE school_id = $1`, [id]);
+      await client.query(`DELETE FROM monthly_champion_snapshot WHERE school_id = $1`, [id]);
+      await client.query(`DELETE FROM model_usage               WHERE school_id = $1`, [id]);
+      await client.query(`DELETE FROM daily_usage               WHERE school_id = $1`, [id]);
+      await client.query(`DELETE FROM students                  WHERE school_id = $1`, [id]);
+      await client.query("COMMIT");
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
     await recordAudit(me.username, "school.students_wipe", id, {
       students_deleted: counts.students,
+      usage_deleted: counts.usage,
+      model_usage_deleted: counts.modelUsage,
     });
     revalidatePath("/admin/schools");
     revalidatePath(`/admin/schools/${id}/edit`);
