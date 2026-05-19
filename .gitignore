@@ -39,6 +39,10 @@ backup-*.sql
 *.tar.gz
 /tmp/
 
+# 학생 초기 비번 자격증명 파일 — 어드민이 학생에 전달한 후 삭제하는 게 안전
+samples/credentials/
+samples/raw/
+
 # 로그
 *.log
 npm-debug.log*

@@ -34,19 +34,37 @@ export default async function ChampionsPage({
     loggedIn && studentSession.schoolId ? studentSession.schoolId : "all";
   const schoolParam = (Array.isArray(sp.school) ? sp.school[0] : sp.school) ?? defaultSchool;
 
-  const [usage, students, schools] = await Promise.all([
+  const [usage, students, allSchools] = await Promise.all([
     loadDailyUsage(365),
     loadStudents(),
-    loadSchools(),
+    loadSchools({ includeInternal: true }),
   ]);
+  const schools = allSchools.filter((s) => !s.isInternal); // 드롭다운용
+  const internalIds = new Set(
+    allSchools.filter((s) => s.isInternal).map((s) => s.id),
+  );
   const school =
-    schoolParam === "all" || schools.some((s) => s.id === schoolParam) ? schoolParam : "all";
+    schoolParam === "all" || allSchools.some((s) => s.id === schoolParam)
+      ? schoolParam
+      : "all";
 
-  const monthly = computeMonthlyChampions(metric, usage, students, schools, school);
+  const usageForChamp =
+    school === "all"
+      ? usage.filter((r) => !internalIds.has(r.schoolId))
+      : usage;
+  const monthly = computeMonthlyChampions(
+    metric,
+    usageForChamp,
+    students,
+    allSchools,
+    school,
+  );
 
   const metricLabel = metric === "credits" ? "토큰 사용량" : "출석";
   const scopeLabel =
-    school === "all" ? "전체 조직" : schools.find((s) => s.id === school)?.name ?? "선택 조직";
+    school === "all"
+      ? "전체 조직"
+      : allSchools.find((s) => s.id === school)?.name ?? "선택 조직";
 
   const otherParamsExceptMetric = { school };
   const otherParamsExceptSchool = { metric };

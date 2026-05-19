@@ -77,17 +77,41 @@ export default async function PublicDashboard({
       : undefined;
 
   const now = new Date();
-  const [usage, students, schools] = await Promise.all([
+  const [usage, students, allSchools] = await Promise.all([
     loadDailyUsage(30),
     loadStudents(),
-    loadSchools(),
+    loadSchools({ includeInternal: true }), // 본교 필터/매핑용으로 사내도 일단 다 받아옴
   ]);
+  // 드롭다운에 보일 학교 = 사내 제외. 사내 학교(예: TBIT) 학생은 본인 default 로 노출됨.
+  const schools = allSchools.filter((s) => !s.isInternal);
+  // 사내 학교 id 목록 — '전체 조직' 뷰에서 이들 학생 사용량 제외할 때 사용
+  const internalIds = new Set(
+    allSchools.filter((s) => s.isInternal).map((s) => s.id),
+  );
+  // 학교 검증은 allSchools 기준 — 사내 학교 학생도 본인 학교 디폴트로 진입 가능해야 함.
   const school =
-    schoolParam === "all" || schools.some((s) => s.id === schoolParam) ? schoolParam : "all";
+    schoolParam === "all" || allSchools.some((s) => s.id === schoolParam)
+      ? schoolParam
+      : "all";
 
   const baseDate = periodWindow("yesterday", now).to;
   const dateRange = periodWindow(period, now, custom);
-  const rank = computeRanking(metric, usage, students, schools, period, school, 100, now, custom);
+  // '전체 조직' 뷰에선 사내 학교 사용량 제외 — 특정 학교 선택 시엔 그 학교 데이터 그대로.
+  const usageForRank =
+    school === "all"
+      ? usage.filter((r) => !internalIds.has(r.schoolId))
+      : usage;
+  const rank = computeRanking(
+    metric,
+    usageForRank,
+    students,
+    allSchools,
+    period,
+    school,
+    100,
+    now,
+    custom,
+  );
   // 본인 순위 핀 카드 — 현재 필터 결과에 본인이 들어있을 때만 노출
   const myRow = loggedIn && studentSession.userId
     ? rank.find((r) => r.userId === studentSession.userId)
@@ -114,7 +138,7 @@ export default async function PublicDashboard({
   const scopeLabel =
     school === "all"
       ? "전체 조직"
-      : schools.find((s) => s.id === school)?.name ?? "선택 조직";
+      : allSchools.find((s) => s.id === school)?.name ?? "선택 조직";
 
   const pickerFrom = fromValid ?? dateRange.from;
   const pickerTo = toValid ?? dateRange.to;
@@ -142,7 +166,7 @@ export default async function PublicDashboard({
             </h1>
             <p className="mt-5 text-[15px] sm:text-[16px] text-[#414d5c]">
               <strong className="text-[#16191f]">{fmtKstDate(baseDate)}</strong> 기준
-              <span className="ml-1.5 text-[#5f6b7a]">· 매일 오전 11:30 갱신</span>
+              <span className="ml-1.5 text-[#5f6b7a]">· 한국시간 매일 오전 11시 (UTC 02:00) 갱신</span>
             </p>
             <p className="mt-2 text-[13px] text-[#95a5b8]">
               현재 표시 값은 임시 목업입니다. 각 조직 Kiro 리포트 연결 시 실제 값으로 자동 전환.
