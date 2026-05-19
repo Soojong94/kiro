@@ -2,7 +2,7 @@
 
 새로 합류하는 학교/조직이 본인 AWS 계정의 S3 버킷에 Kiro 리포트를 떨어뜨리는데, **우리 인제스트 서버가 그걸 읽어야** 합니다. 두 가지 방법 중 학교 사정에 맞춰 고르세요.
 
-| 우리 측 | 본인 IAM 사용자 `***REMOVED-AWS-KEY-ID***` (계정 `123456789012`) |
+| 우리 측 | TBIT 측 IAM 사용자 (계정 ID 는 학교 측에 별도 공유) |
 |---|---|
 | 학교 측 | 자기 AWS 계정 + 자기 S3 버킷 (예: `school-xyz-kiro`, 계정 ID `111122223333`) |
 
@@ -25,7 +25,7 @@
       "Sid": "AllowKiroIngestRead",
       "Effect": "Allow",
       "Principal": {
-        "AWS": "arn:aws:iam::123456789012:user/<our-iam-user-name>"
+        "AWS": "arn:aws:iam::<our-account-id>:user/<our-iam-user-name>"
       },
       "Action": [
         "s3:GetObject",
@@ -94,7 +94,7 @@ IAM → Roles → Create role → **Custom trust policy**:
     {
       "Effect": "Allow",
       "Principal": {
-        "AWS": "arn:aws:iam::123456789012:root"
+        "AWS": "arn:aws:iam::<our-account-id>:root"
       },
       "Action": "sts:AssumeRole",
       "Condition": {

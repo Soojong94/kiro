@@ -1,6 +1,6 @@
 # 배포 가이드 — Ubuntu EC2 + Docker + nginx + Let's Encrypt
 
-대상: `<server-ip>` (Ubuntu 22.04+), 도메인 `kiro.tbit.co.kr`.
+대상: 운영 EC2 (Ubuntu 22.04+), 도메인 `kiro.tbit.co.kr`. 아래에서 `<server-ip>` 는 운영 서버 퍼블릭 IP, `<your-key>.pem` 은 SSH 키 파일로 치환.
 
 ## 0. 사전 준비 (로컬 + AWS 콘솔)
 
@@ -14,11 +14,9 @@
 - A 레코드: `kiro.tbit.co.kr` → `<server-ip>`
 - 전파 확인: `dig +short kiro.tbit.co.kr` 가 IP 반환할 때까지 대기 (수 분 ~ 수 시간)
 
-**Git 푸시** (로컬 윈도우, 마지막 커밋 시점 기준)
+**Git 푸시** (로컬에서 마지막 변경 커밋 후)
 ```powershell
-git add .
-git commit -m "deploy: prod docker + nginx + ssl + 20-school mock"
-git push origin main   # 또는 master
+git push origin master
 ```
 
 ---
@@ -57,20 +55,21 @@ cd kiro
 ## 2. 환경변수 (`.env`) 작성
 
 ```bash
-cp .env.production.example .env
+cp .env.example .env
 nano .env
 ```
 
-채울 값:
+채울 값 (모든 값은 새로 발급/생성하고, 절대 이 문서나 채팅에 붙여넣지 말 것):
 
 | 키 | 값 |
 |---|---|
-| `DB_PASSWORD` | Postgres 비번 — 강한 랜덤 (예: `***REMOVED-DB-PW-EXAMPLE***`) |
+| `DB_PASSWORD` | Postgres 비번 — `openssl rand -base64 24` |
 | `ADMIN_BOOTSTRAP_PASSWORD` | 최초 어드민 비번 (생성 후 라인 삭제) |
-| `SESSION_COOKIE_PASSWORD` | 32자+ 랜덤 (예: `***REMOVED-COOKIE-PW-EXAMPLE***`) |
-| `AWS_ACCESS_KEY_ID` / `SECRET` | 로컬 `.env.local` 값 그대로 복사 |
-| `APP_BASE_URL` | `https://kiro.tbit.co.kr` (기본값 그대로) |
-| `SMTP_*` / `EMAIL_FROM` | 기본값 그대로 (Gmail) |
+| `SESSION_COOKIE_PASSWORD` | 32자 이상 랜덤 — `openssl rand -base64 32` |
+| `AWS_ACCESS_KEY_ID` / `SECRET` | IAM 콘솔에서 새로 발급 (kiro-ingest 용) |
+| `APP_BASE_URL` | `https://kiro.tbit.co.kr` |
+| `SMTP_USER` / `SMTP_PASS` | Gmail 계정 + 앱 비밀번호 |
+| `EMAIL_FROM` | `"Kiro 통합 랭킹 <noreply@example.com>"` 형태 |
 
 저장 후:
 ```bash
@@ -91,14 +90,15 @@ docker compose -f docker-compose.prod.yml logs -f next
 
 ---
 
-## 4. 어드민 + 목업 데이터 시드
+## 4. 어드민 부트스트랩 + 학생 데이터 동기화
 
 ```bash
 docker compose -f docker-compose.prod.yml exec next npm run bootstrap-admin
-docker compose -f docker-compose.prod.yml exec next npm run seed-mock-full
+docker compose -f docker-compose.prod.yml exec next npm run sync-identity-center
 ```
 
-시드 끝나면 `.env` 에서 `ADMIN_BOOTSTRAP_PASSWORD` 라인 삭제.
+부트스트랩 끝나면 `.env` 에서 `ADMIN_BOOTSTRAP_PASSWORD` 라인 삭제.
+`sync-identity-center` 는 AWS Identity Center 의 그룹/사용자를 schools/students 로 import — 신규 학생은 `samples/credentials/*.csv` 에 초기 비번 출력됨.
 
 ---
 
@@ -130,7 +130,7 @@ certbot 이 nginx 설정에 SSL 블록 + http→https 리다이렉트를 자동 
 브라우저: **https://kiro.tbit.co.kr**
 
 - `/` → 학생 로그인 게이트
-- `/login` → `snu.1` / `welcome1234` (목업 학생)
+- `/login` → `sync-identity-center` 가 만든 학생 계정 + `samples/credentials/*.csv` 의 초기 비번
 - `/admin/login` → `admin` / 본인이 설정한 비번
 
 ---
