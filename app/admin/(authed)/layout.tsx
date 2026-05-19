@@ -20,9 +20,12 @@ export default async function AdminAuthedLayout({
   children: React.ReactNode;
 }) {
   const session = await getSession();
-  // 마이그레이션 전 세션은 role 없음. 쿠키 수정은 레이아웃에서 불가하므로
-  // (Next 제약) 그냥 로그인으로 보냄 — 로그인 페이지가 stale 세션도 통과시킴.
-  if (!session.adminId || !session.role || !session.username) {
+  if (!session.adminId) {
+    // 세션 자체 없음 — 평범한 비로그인. 메시지 없이 로그인 페이지로.
+    redirect("/admin/login");
+  }
+  if (!session.role || !session.username) {
+    // 쿠키는 있는데 필드가 불완전 — 마이그레이션 전 옛 세션. 메시지 표시 후 새 로그인 유도.
     redirect("/admin/login?error=session_stale");
   }
   const isSuper = session.role === "super";
