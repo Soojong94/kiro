@@ -6,6 +6,12 @@ const LABELS: Record<Metric, string> = {
   attendance: "출석",
 };
 
+// 메트릭별 active 색 — 시각적 구분 (헷갈림 방지).
+const ACTIVE_BG: Record<Metric, string> = {
+  credits: "#ec7211",   // AWS 오렌지 — 1위/credit 톤과 일관
+  attendance: "#0972d3", // AWS 블루 — 출석/카운트 톤
+};
+
 export function MetricToggle({
   value,
   otherParams,
@@ -30,11 +36,12 @@ export function MetricToggle({
             key={m}
             href={make(m)}
             scroll={false}
+            style={active ? { background: ACTIVE_BG[m] } : undefined}
             className={
-              "px-3 py-1.5 transition-colors " +
+              "px-3 py-1.5 transition-colors cursor-pointer " +
               (isFirst ? "" : "border-l border-[#d5dbdb] ") +
               (active
-                ? "bg-[#232f3e] text-white"
+                ? "text-white"
                 : "text-[#414d5c] hover:bg-[#f2f3f3]")
             }
           >
