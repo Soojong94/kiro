@@ -1,6 +1,6 @@
 # 배포 가이드 — Ubuntu EC2 + Docker + nginx + Let's Encrypt
 
-대상: `<server-ip>` (Ubuntu 22.04+), 도메인 `***REMOVED-BUCKET***.kro.kr`.
+대상: `<server-ip>` (Ubuntu 22.04+), 도메인 `kiro.tbit.co.kr`.
 
 ## 0. 사전 준비 (로컬 + AWS 콘솔)
 
@@ -11,8 +11,8 @@
 - inbound TCP **3000** 은 닫아둠 — nginx 가 내부 프록시
 
 **DNS**
-- A 레코드: `***REMOVED-BUCKET***.kro.kr` → `<server-ip>`
-- 전파 확인: `dig +short ***REMOVED-BUCKET***.kro.kr` 가 IP 반환할 때까지 대기 (수 분 ~ 수 시간)
+- A 레코드: `kiro.tbit.co.kr` → `<server-ip>`
+- 전파 확인: `dig +short kiro.tbit.co.kr` 가 IP 반환할 때까지 대기 (수 분 ~ 수 시간)
 
 **Git 푸시** (로컬 윈도우, 마지막 커밋 시점 기준)
 ```powershell
@@ -69,7 +69,7 @@ nano .env
 | `ADMIN_BOOTSTRAP_PASSWORD` | 최초 어드민 비번 (생성 후 라인 삭제) |
 | `SESSION_COOKIE_PASSWORD` | 32자+ 랜덤 (예: `***REMOVED-COOKIE-PW-EXAMPLE***`) |
 | `AWS_ACCESS_KEY_ID` / `SECRET` | 로컬 `.env.local` 값 그대로 복사 |
-| `APP_BASE_URL` | `https://***REMOVED-BUCKET***.kro.kr` (기본값 그대로) |
+| `APP_BASE_URL` | `https://kiro.tbit.co.kr` (기본값 그대로) |
 | `SMTP_*` / `EMAIL_FROM` | 기본값 그대로 (Gmail) |
 
 저장 후:
@@ -106,13 +106,13 @@ docker compose -f docker-compose.prod.yml exec next npm run seed-mock-full
 
 DNS 전파 확인:
 ```bash
-dig +short ***REMOVED-BUCKET***.kro.kr
+dig +short kiro.tbit.co.kr
 # <server-ip> 가 떠야 함
 ```
 
 서버에 nginx 가 80 포트로 응답하는지 확인:
 ```bash
-curl -i http://***REMOVED-BUCKET***.kro.kr/healthz
+curl -i http://kiro.tbit.co.kr/healthz
 # HTTP/1.1 200 OK + "ok" 가 떠야 함
 ```
 
@@ -127,7 +127,7 @@ certbot 이 nginx 설정에 SSL 블록 + http→https 리다이렉트를 자동 
 
 ## 6. 접속 확인
 
-브라우저: **https://***REMOVED-BUCKET***.kro.kr**
+브라우저: **https://kiro.tbit.co.kr**
 
 - `/` → 학생 로그인 게이트
 - `/login` → `snu.1` / `welcome1234` (목업 학생)
@@ -172,4 +172,4 @@ docker compose -f docker-compose.prod.yml down -v
    ```
 2. **자동 백업** — `pg_dump` 일일 cron + S3 업로드
 3. **로그 로테이션** — Docker logs json 크기 제한 (`docker-compose.prod.yml` 의 logging 옵션)
-4. **모니터링** — UptimeRobot 등으로 `https://***REMOVED-BUCKET***.kro.kr/healthz` 폴링
+4. **모니터링** — UptimeRobot 등으로 `https://kiro.tbit.co.kr/healthz` 폴링
