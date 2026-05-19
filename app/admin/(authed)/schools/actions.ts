@@ -125,40 +125,67 @@ export async function updateSchoolAction(formData: FormData): Promise<void> {
   redirect("/admin/schools?ok=updated");
 }
 
-// 학교 삭제 — 학생/사용량 데이터 있으면 차단. force=true 면 트랜잭션 안에서 학생까지 정리.
-// daily_usage / model_usage 같은 사용량 데이터는 보존을 위해 force 와 무관하게 차단.
+// 학교 삭제 — 세 단계:
+//   기본: 학생/사용량 둘 다 없을 때만
+//   force=1: 학생만 있을 때 — 학생까지 정리
+//   purge=1: 학생 + 사용량 + 스냅샷 + 인제스트 로그 전부 정리 (확인 텍스트 일치 필수)
 export async function deleteSchoolAction(formData: FormData): Promise<void> {
   const me = await requireAdmin();
   ensureSuper(me.role);
 
   const id = String(formData.get("id") ?? "").trim().toLowerCase();
   const force = String(formData.get("force") ?? "") === "1";
+  const purge = String(formData.get("purge") ?? "") === "1";
+  const confirm = String(formData.get("confirm") ?? "").trim().toLowerCase();
   if (!id) redirect("/admin/schools?error=id_required");
 
-  // 사용량 데이터가 있으면 force 와 무관하게 차단 (데이터 손실 방지)
-  const { rows: usageRows } = await pool.query<{ c: string }>(
-    `SELECT count(*)::text AS c FROM daily_usage WHERE school_id = $1`,
+  // 카운트 조회 — 아래 분기 + 감사 로그용
+  const { rows: countRows } = await pool.query<{
+    students: string;
+    usage: string;
+    model_usage: string;
+    runs: string;
+  }>(
+    `SELECT
+       (SELECT count(*) FROM students    WHERE school_id = $1)::text AS students,
+       (SELECT count(*) FROM daily_usage WHERE school_id = $1)::text AS usage,
+       (SELECT count(*) FROM model_usage WHERE school_id = $1)::text AS model_usage,
+       (SELECT count(*) FROM ingest_runs WHERE school_id = $1)::text AS runs`,
     [id],
   );
-  if (Number(usageRows[0].c) > 0) {
-    redirect(`/admin/schools?error=has_usage&id=${id}`);
+  const counts = {
+    students: Number(countRows[0].students),
+    usage: Number(countRows[0].usage),
+    modelUsage: Number(countRows[0].model_usage),
+    runs: Number(countRows[0].runs),
+  };
+
+  // purge 가 아니면서 사용량 데이터 있음 → 차단
+  if (counts.usage > 0 && !purge) {
+    redirect(`/admin/schools/${id}/edit?error=has_usage&count=${counts.usage}`);
   }
-
-  const { rows: studentRows } = await pool.query<{ c: string }>(
-    `SELECT count(*)::text AS c FROM students WHERE school_id = $1`,
-    [id],
-  );
-  const studentCount = Number(studentRows[0].c);
-
-  if (studentCount > 0 && !force) {
-    redirect(`/admin/schools/${id}/edit?error=has_students&count=${studentCount}`);
+  // force/purge 가 아니면서 학생 있음 → 차단
+  if (counts.students > 0 && !force && !purge) {
+    redirect(`/admin/schools/${id}/edit?error=has_students&count=${counts.students}`);
+  }
+  // purge 는 안전장치: 학교 id 직접 입력 필수
+  if (purge && confirm !== id) {
+    redirect(`/admin/schools/${id}/edit?error=purge_confirm`);
   }
 
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    if (studentCount > 0) {
-      // force=true 인 경우만 도달. 학생 행 명시적 삭제 후 학교 삭제.
+    if (purge) {
+      // 사용량/스냅샷/인제스트 로그까지 모두 정리 (FK 없으니 순서는 자유)
+      await client.query(`DELETE FROM ranking_snapshot WHERE school_id = $1`, [id]);
+      await client.query(`DELETE FROM monthly_champion_snapshot WHERE school_id = $1`, [id]);
+      await client.query(`DELETE FROM ingest_runs WHERE school_id = $1`, [id]);
+      await client.query(`DELETE FROM model_usage WHERE school_id = $1`, [id]);
+      await client.query(`DELETE FROM daily_usage WHERE school_id = $1`, [id]);
+    }
+    if (counts.students > 0) {
+      // force 또는 purge 인 경우만 도달 (위 차단 통과)
       await client.query(`DELETE FROM students WHERE school_id = $1`, [id]);
     }
     const { rowCount } = await client.query(`DELETE FROM schools WHERE id = $1`, [id]);
@@ -175,9 +202,12 @@ export async function deleteSchoolAction(formData: FormData): Promise<void> {
   }
 
   await recordAudit(me.username, "school.delete", id, {
-    forced: force,
-    students_deleted: studentCount,
+    mode: purge ? "purge" : force ? "force" : "safe",
+    students_deleted: counts.students,
+    usage_deleted: purge ? counts.usage : 0,
+    model_usage_deleted: purge ? counts.modelUsage : 0,
+    ingest_runs_deleted: purge ? counts.runs : 0,
   });
   revalidatePath("/admin/schools");
-  redirect("/admin/schools?ok=deleted");
+  redirect(purge ? "/admin/schools?ok=purged" : "/admin/schools?ok=deleted");
 }
