@@ -30,9 +30,7 @@ export default async function ChampionsPage({
 
   const sp = await searchParams;
   const metric = pick(sp.metric, METRICS, "credits");
-  const defaultSchool =
-    loggedIn && studentSession.schoolId ? studentSession.schoolId : "all";
-  const schoolParam = (Array.isArray(sp.school) ? sp.school[0] : sp.school) ?? defaultSchool;
+  const schoolRaw = Array.isArray(sp.school) ? sp.school[0] : sp.school;
 
   const [usage, students, allSchools] = await Promise.all([
     loadDailyUsage(365),
@@ -43,8 +41,16 @@ export default async function ChampionsPage({
   const internalIds = new Set(
     allSchools.filter((s) => s.isInternal).map((s) => s.id),
   );
+  // 사내 학교 학생은 본교 디폴트가 아닌 '전체 조직' 디폴트.
+  const defaultSchool =
+    loggedIn && studentSession.schoolId && !internalIds.has(studentSession.schoolId)
+      ? studentSession.schoolId
+      : "all";
+  const schoolParam = schoolRaw ?? defaultSchool;
+  // 사내 학교(TBIT) 는 어떤 경로로도 학생 페이지 챔피언에 노출 X — URL 직접 입력도 차단.
   const school =
-    schoolParam === "all" || allSchools.some((s) => s.id === schoolParam)
+    schoolParam === "all" ||
+    (allSchools.some((s) => s.id === schoolParam) && !internalIds.has(schoolParam))
       ? schoolParam
       : "all";
 

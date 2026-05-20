@@ -62,10 +62,7 @@ export default async function PublicDashboard({
   const sp = await searchParams;
   const period = pick(sp.period, PERIODS, "this_month");
   const metric = pick(sp.metric, METRICS, "credits");
-  // 로그인 학생은 본교가 디폴트 — '전체 조직' 보려면 드롭다운에서 직접 선택
-  const defaultSchool =
-    loggedIn && studentSession.schoolId ? studentSession.schoolId : "all";
-  const schoolParam = (Array.isArray(sp.school) ? sp.school[0] : sp.school) ?? defaultSchool;
+  const schoolRaw = Array.isArray(sp.school) ? sp.school[0] : sp.school;
 
   const fromRaw = pickStr(sp.from);
   const toRaw = pickStr(sp.to);
@@ -82,15 +79,22 @@ export default async function PublicDashboard({
     loadStudents(),
     loadSchools({ includeInternal: true }), // 본교 필터/매핑용으로 사내도 일단 다 받아옴
   ]);
-  // 드롭다운에 보일 학교 = 사내 제외. 사내 학교(예: TBIT) 학생은 본인 default 로 노출됨.
+  // 드롭다운에 보일 학교 = 사내 제외
   const schools = allSchools.filter((s) => !s.isInternal);
-  // 사내 학교 id 목록 — '전체 조직' 뷰에서 이들 학생 사용량 제외할 때 사용
+  // 사내 학교 id 목록 — '전체 조직' 뷰에서 이들 학생 사용량 제외
   const internalIds = new Set(
     allSchools.filter((s) => s.isInternal).map((s) => s.id),
   );
-  // 학교 검증은 allSchools 기준 — 사내 학교 학생도 본인 학교 디폴트로 진입 가능해야 함.
+  // 로그인 학생의 본교가 디폴트. 사내 학교 학생은 '전체 조직' 디폴트.
+  const defaultSchool =
+    loggedIn && studentSession.schoolId && !internalIds.has(studentSession.schoolId)
+      ? studentSession.schoolId
+      : "all";
+  const schoolParam = schoolRaw ?? defaultSchool;
+  // 사내 학교(TBIT) 는 어떤 경로로도 학생 페이지 랭킹에 노출 X — URL 직접 입력도 차단.
   const school =
-    schoolParam === "all" || allSchools.some((s) => s.id === schoolParam)
+    schoolParam === "all" ||
+    (allSchools.some((s) => s.id === schoolParam) && !internalIds.has(schoolParam))
       ? schoolParam
       : "all";
 
@@ -167,9 +171,6 @@ export default async function PublicDashboard({
             <p className="mt-5 text-[15px] sm:text-[16px] text-[#414d5c]">
               <strong className="text-[#16191f]">{fmtKstDate(baseDate)}</strong> 기준
               <span className="ml-1.5 text-[#5f6b7a]">· 한국시간 매일 오전 11시 (UTC 02:00) 갱신</span>
-            </p>
-            <p className="mt-2 text-[13px] text-[#95a5b8]">
-              현재 표시 값은 임시 목업입니다. 각 조직 Kiro 리포트 연결 시 실제 값으로 자동 전환.
             </p>
           </div>
         </header>

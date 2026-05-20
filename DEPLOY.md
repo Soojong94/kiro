@@ -90,19 +90,47 @@ docker compose -f docker-compose.prod.yml logs -f next
 
 ---
 
-## 4. 어드민 부트스트랩 + 학생 데이터 동기화
+## 4. DB 마이그레이션 적용
+
+`db/schema.sql` 은 Postgres 컨테이너 최초 init 때만 자동 실행됨. 이후 추가된 마이그레이션은 **순서대로 수동 적용**.
 
 ```bash
-docker compose -f docker-compose.prod.yml exec next npm run bootstrap-admin
-docker compose -f docker-compose.prod.yml exec next npm run sync-identity-center
+# 운영 DB 에 적용 안 된 마이그레이션 확인 — 일단 전부 돌려도 안전 (모두 IF NOT EXISTS / 멱등)
+for f in db/migrations/*.sql; do
+  echo "── 적용: $f"
+  docker exec -i kiro-pg psql -U kiro -d kiro < "$f"
+done
+
+# 스키마 확인
+docker exec kiro-pg psql -U kiro -d kiro -c "\dt"
+# connections / schools / students / daily_usage / ingest_runs / admins 등 다 떠야 함
 ```
 
-부트스트랩 끝나면 `.env` 에서 `ADMIN_BOOTSTRAP_PASSWORD` 라인 삭제.
-`sync-identity-center` 는 AWS Identity Center 의 그룹/사용자를 schools/students 로 import — 신규 학생은 `samples/credentials/*.csv` 에 초기 비번 출력됨.
+> 마이그레이션 5개 (auth, password-reset, students-fk-restrict, schools-internal, connections, ingest-runs-connection, admin-password-age) 모두 적용 필수. 누락 시 학생 페이지 500 또는 ingest 실패.
 
 ---
 
-## 5. SSL 인증서 발급 (Let's Encrypt)
+## 5. 어드민 부트스트랩 + AWS 연결 등록 + 초기 sync
+
+```bash
+# 최초 super 어드민 1명 생성 (.env 의 ADMIN_BOOTSTRAP_PASSWORD 사용)
+docker compose -f docker-compose.prod.yml exec next npm run bootstrap-admin
+```
+
+부트스트랩 끝나면 `.env` 에서 `ADMIN_BOOTSTRAP_PASSWORD` 라인 삭제 권장.
+
+그 후 브라우저에서 `https://kiro.tbit.co.kr/admin/login` → 어드민 로그인 → **AWS 연결** 메뉴 → connection 1건 등록 (S3 + IC + role_arn). 자세한 절차는 `/admin/connections/guide`.
+
+connection 등록 후 sync 1회:
+```bash
+docker compose -f docker-compose.prod.yml exec next npm run sync-identity-center
+```
+
+학생/학교 자동 import. 신규 학생 초기 비번은 `samples/credentials/*.csv` 에 출력.
+
+---
+
+## 6. SSL 인증서 발급 (Let's Encrypt)
 
 DNS 전파 확인:
 ```bash
@@ -125,13 +153,53 @@ certbot 이 nginx 설정에 SSL 블록 + http→https 리다이렉트를 자동 
 
 ---
 
-## 6. 접속 확인
+## 7. 접속 확인
 
 브라우저: **https://kiro.tbit.co.kr**
 
 - `/` → 학생 로그인 게이트
 - `/login` → `sync-identity-center` 가 만든 학생 계정 + `samples/credentials/*.csv` 의 초기 비번
 - `/admin/login` → `admin` / 본인이 설정한 비번
+
+---
+
+## 8. cron 자동화 (systemd timer)
+
+매일 자동으로 IC sync + S3 ingest 돌도록:
+
+```bash
+# 시스템 디렉토리로 복사
+sudo cp ops/systemd/kiro-sync-identity.{service,timer} /etc/systemd/system/
+sudo cp ops/systemd/kiro-ingest.{service,timer} /etc/systemd/system/
+
+# 권한 + reload
+sudo systemctl daemon-reload
+
+# 활성화 + 즉시 시작 (timer 만, service 는 timer 가 호출)
+sudo systemctl enable --now kiro-sync-identity.timer kiro-ingest.timer
+
+# 등록 확인 — 다음 실행 시각 표시
+sudo systemctl list-timers kiro-*
+```
+
+스케줄:
+- `kiro-sync-identity.timer` → 매일 **02:15 UTC** (11:15 KST) — IC 그룹/사용자 → schools/students
+- `kiro-ingest.timer` → 매일 **02:30 UTC** (11:30 KST) — S3 CSV → daily_usage + 스냅샷
+
+**운영 명령**:
+```bash
+# 수동 실행 (즉시 한 번)
+sudo systemctl start kiro-sync-identity.service
+sudo systemctl start kiro-ingest.service
+
+# 최근 실행 로그
+journalctl -u kiro-ingest.service -n 50
+journalctl -u kiro-sync-identity.service -n 50
+
+# 일시 중지
+sudo systemctl stop kiro-ingest.timer
+sudo systemctl disable kiro-ingest.timer  # 영구 중지
+```
 
 ---
 
@@ -165,11 +233,7 @@ docker compose -f docker-compose.prod.yml down -v
 
 ## 다음 단계 (선택)
 
-1. **인제스트 cron** — 내일 첫 Kiro CSV 떨어진 뒤 systemd timer 등록:
-   ```
-   /etc/systemd/system/kiro-ingest.service
-   /etc/systemd/system/kiro-ingest.timer
-   ```
-2. **자동 백업** — `pg_dump` 일일 cron + S3 업로드
-3. **로그 로테이션** — Docker logs json 크기 제한 (`docker-compose.prod.yml` 의 logging 옵션)
-4. **모니터링** — UptimeRobot 등으로 `https://kiro.tbit.co.kr/healthz` 폴링
+1. **자동 백업** — `pg_dump` 일일 cron + S3 업로드
+2. **로그 로테이션** — Docker logs json 크기 제한 (`docker-compose.prod.yml` 의 logging 옵션)
+3. **모니터링** — UptimeRobot 등으로 `https://kiro.tbit.co.kr/healthz` 폴링
+4. **AWS SES 마이그레이션** — 현재 Gmail SMTP. 운영 본격화 시 SES 도메인 verify 후 `lib/email.ts` 만 교체

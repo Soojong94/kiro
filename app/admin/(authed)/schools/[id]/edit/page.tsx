@@ -9,7 +9,6 @@ export const metadata = { title: "학교 편집 · Kiro 관리자" };
 const FORM_ERRORS: Record<string, string> = {
   name_required: "이름은 필수입니다.",
   kind_invalid: "구분 값이 올바르지 않습니다.",
-  account_id_format: "AWS 계정 ID는 12자리 숫자여야 합니다.",
   has_students: "학생이 등록된 학교는 일반 삭제 불가.",
   has_usage: "사용량 데이터가 있는 학교는 일반 삭제 불가.",
   purge_confirm: "완전 삭제 확인 — 학교 id 를 정확히 입력하세요.",
@@ -42,13 +41,10 @@ export default async function EditSchoolPage({
     id: string;
     name: string;
     kind: "high_school" | "university" | "region";
-    aws_account_id: string | null;
-    s3_bucket: string | null;
-    s3_prefix: string | null;
-    aws_region: string;
-    role_arn: string | null;
+    connection_id: string | null;
+    is_internal: boolean;
   }>(
-    `SELECT id, name, kind, aws_account_id, s3_bucket, s3_prefix, aws_region, role_arn
+    `SELECT id, name, kind, connection_id, is_internal
        FROM schools WHERE id = $1 LIMIT 1`,
     [id],
   );
@@ -99,7 +95,7 @@ export default async function EditSchoolPage({
         </div>
       )}
 
-      {/* 편집 폼 */}
+      {/* 편집 폼 — 학교 메타만. S3/IC 설정은 connections 에서. */}
       <section className="rounded-lg bg-white p-5 ring-1 ring-[#eaeded] shadow-[0_1px_2px_rgba(0,28,36,0.05)] mb-6">
         <form
           action={updateSchoolAction}
@@ -109,6 +105,13 @@ export default async function EditSchoolPage({
           <FormField label="id (변경 불가)">
             <input
               value={school.id}
+              disabled
+              className="w-full px-2.5 py-1.5 rounded-md ring-1 ring-[#d5dbdb] bg-[#f4f5f5] text-[#5f6b7a] font-mono"
+            />
+          </FormField>
+          <FormField label="Connection (변경은 AWS 연결 메뉴에서)">
+            <input
+              value={school.connection_id ?? "(미연결)"}
               disabled
               className="w-full px-2.5 py-1.5 rounded-md ring-1 ring-[#d5dbdb] bg-[#f4f5f5] text-[#5f6b7a] font-mono"
             />
@@ -128,36 +131,20 @@ export default async function EditSchoolPage({
               <option value="region">권역/기타</option>
             </select>
           </FormField>
-          <FormField label="AWS 계정 ID">
-            <Input
-              name="aws_account_id"
-              defaultValue={school.aws_account_id ?? ""}
-              placeholder="123456789012"
-            />
-          </FormField>
-          <FormField label="S3 버킷명">
-            <Input
-              name="s3_bucket"
-              defaultValue={school.s3_bucket ?? ""}
-              placeholder="***REMOVED-BUCKET***"
-            />
-          </FormField>
-          <FormField label="S3 prefix">
-            <Input
-              name="s3_prefix"
-              defaultValue={school.s3_prefix ?? ""}
-              placeholder="***REMOVED-PREFIX***"
-            />
-          </FormField>
-          <FormField label="AWS 리전">
-            <Input name="aws_region" defaultValue={school.aws_region} />
-          </FormField>
-          <FormField label="Role ARN">
-            <Input
-              name="role_arn"
-              defaultValue={school.role_arn ?? ""}
-              placeholder="arn:aws:iam::...:role/..."
-            />
+          <FormField label="사내 표시 (학생 페이지 랭킹 제외)">
+            <label className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-md ring-1 ring-[#d5dbdb] bg-white cursor-pointer">
+              <input
+                type="checkbox"
+                name="is_internal"
+                value="1"
+                defaultChecked={school.is_internal}
+              />
+              <span className="text-[12.5px]">
+                {school.is_internal
+                  ? "사내 (랭킹/공개 페이지 노출 X)"
+                  : "일반 학교"}
+              </span>
+            </label>
           </FormField>
           <div className="sm:col-span-2 flex justify-end">
             <button

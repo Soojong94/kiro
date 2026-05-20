@@ -18,14 +18,9 @@ export async function loadSchools(
     name: string;
     kind: School["kind"];
     is_internal: boolean;
-    aws_account_id: string | null;
-    s3_bucket: string | null;
-    s3_prefix: string | null;
-    aws_region: string;
-    role_arn: string | null;
+    connection_id: string | null;
   }>(
-    `SELECT id, name, kind, is_internal,
-            aws_account_id, s3_bucket, s3_prefix, aws_region, role_arn
+    `SELECT id, name, kind, is_internal, connection_id
        FROM schools ${where} ORDER BY name`,
   );
   return rows.map((r) => ({
@@ -33,11 +28,7 @@ export async function loadSchools(
     name: r.name,
     kind: r.kind,
     isInternal: r.is_internal,
-    awsAccountId: r.aws_account_id ?? undefined,
-    s3Bucket: r.s3_bucket ?? undefined,
-    s3Prefix: r.s3_prefix ?? undefined,
-    awsRegion: r.aws_region,
-    roleArn: r.role_arn ?? undefined,
+    connectionId: r.connection_id ?? undefined,
   }));
 }
 

@@ -3,21 +3,36 @@
 -- 실행: psql "$DATABASE_URL" -f db/schema.sql
 
 -- ─────────────────────────────────────────────────────────────────
--- 학교 (인제스트 대상 단위)
+-- connections (AWS 계정 단위 인제스트 출처)
+-- 한 connection 이 N 학교(=IC 그룹) 호스팅. cross-account 시 role_arn 으로 AssumeRole.
+-- ─────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS connections (
+  id              text         PRIMARY KEY,
+  name            text         NOT NULL,
+  aws_account_id  text,
+  ic_instance_id  text,                                              -- Identity Center 인스턴스 ID
+  ic_region       text         NOT NULL DEFAULT 'us-east-1',
+  s3_bucket       text,
+  s3_prefix       text,
+  s3_region       text         NOT NULL DEFAULT 'ap-northeast-2',
+  role_arn        text,                                              -- null=자기 계정, 있으면 AssumeRole
+  created_at      timestamptz  NOT NULL DEFAULT now()
+);
+
+-- ─────────────────────────────────────────────────────────────────
+-- 학교 (IC 그룹의 우리 측 표현)
 -- ─────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS schools (
-  id             text PRIMARY KEY,
-  name           text NOT NULL,
-  kind           text NOT NULL CHECK (kind IN ('high_school', 'university', 'region')),
-  -- 사내용 학교 (TBIT 등) 표시 — 랭킹/공개 페이지에서 제외, 어드민에는 그대로 노출.
-  is_internal    boolean NOT NULL DEFAULT false,
-  aws_account_id text,
-  s3_bucket      text,
-  s3_prefix      text,
-  aws_region     text NOT NULL DEFAULT 'ap-northeast-2',
-  role_arn       text,   -- null → 우리 계정 직접; 있으면 cross-account AssumeRole
-  created_at     timestamptz NOT NULL DEFAULT now()
+  id             text         PRIMARY KEY,             -- = IC 그룹명
+  name           text         NOT NULL,
+  kind           text         NOT NULL CHECK (kind IN ('high_school', 'university', 'region')),
+  -- 사내용 학교 (TBIT 등) — 학생 페이지 랭킹/공개에서 제외, 어드민에는 그대로 노출.
+  is_internal    boolean      NOT NULL DEFAULT false,
+  -- 어느 AWS 연결에서 가져오는지. sync 가 IC 그룹 import 시점에 채움.
+  connection_id  text         REFERENCES connections(id) ON DELETE SET NULL,
+  created_at     timestamptz  NOT NULL DEFAULT now()
 );
+CREATE INDEX IF NOT EXISTS idx_schools_connection ON schools(connection_id);
 
 -- ─────────────────────────────────────────────────────────────────
 -- 학생 (userId ↔ 실명 매핑)
@@ -74,19 +89,19 @@ CREATE TABLE IF NOT EXISTS model_usage (
 );
 
 -- ─────────────────────────────────────────────────────────────────
--- 인제스트 실행 로그  (학교×날짜 단위, 재시도마다 새 행)
+-- 인제스트 실행 로그  (connection × 날짜 단위, 재시도마다 새 행)
 -- ─────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS ingest_runs (
-  id         bigserial    PRIMARY KEY,
-  school_id  text         NOT NULL REFERENCES schools(id),
-  date       date         NOT NULL,
-  status     text         NOT NULL CHECK (status IN ('running', 'ok', 'error')),
-  rows       int,
-  error      text,
-  started_at timestamptz  NOT NULL DEFAULT now(),
-  ended_at   timestamptz
+  id             bigserial    PRIMARY KEY,
+  connection_id  text         NOT NULL REFERENCES connections(id) ON DELETE CASCADE,
+  date           date         NOT NULL,
+  status         text         NOT NULL CHECK (status IN ('running', 'ok', 'error')),
+  rows           int,
+  error          text,
+  started_at     timestamptz  NOT NULL DEFAULT now(),
+  ended_at       timestamptz
 );
-CREATE INDEX IF NOT EXISTS idx_ingest_runs ON ingest_runs (school_id, date, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ingest_runs ON ingest_runs (connection_id, date, started_at DESC);
 
 -- ─────────────────────────────────────────────────────────────────
 -- 랭킹 스냅샷  (인제스트 완료 후 미리 계산해 저장)

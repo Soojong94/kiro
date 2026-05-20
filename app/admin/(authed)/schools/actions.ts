@@ -11,14 +11,6 @@ function ensureSuper(role: string): void {
   }
 }
 
-function isValidSchoolId(s: string): boolean {
-  return /^[a-z][a-z0-9_-]{1,31}$/.test(s);
-}
-
-function isValidAccountId(s: string): boolean {
-  return /^\d{12}$/.test(s);
-}
-
 type Kind = "high_school" | "university" | "region";
 
 function parseForm(formData: FormData) {
@@ -26,70 +18,19 @@ function parseForm(formData: FormData) {
     id: String(formData.get("id") ?? "").trim().toLowerCase(),
     name: String(formData.get("name") ?? "").trim(),
     kind: String(formData.get("kind") ?? "") as Kind,
-    awsAccountId: String(formData.get("aws_account_id") ?? "").trim() || null,
-    s3Bucket: String(formData.get("s3_bucket") ?? "").trim() || null,
-    s3Prefix: String(formData.get("s3_prefix") ?? "").trim() || null,
-    awsRegion: String(formData.get("aws_region") ?? "").trim() || "ap-northeast-2",
-    roleArn: String(formData.get("role_arn") ?? "").trim() || null,
+    isInternal: formData.get("is_internal") === "1",
   };
 }
 
-function validate(
-  data: ReturnType<typeof parseForm>,
-  isUpdate: boolean,
-): string | null {
-  if (!isUpdate) {
-    if (!data.id) return "id_required";
-    if (!isValidSchoolId(data.id)) return "id_format";
-  }
+function validate(data: ReturnType<typeof parseForm>): string | null {
   if (!data.name) return "name_required";
   if (!["high_school", "university", "region"].includes(data.kind)) {
     return "kind_invalid";
   }
-  if (data.awsAccountId && !isValidAccountId(data.awsAccountId)) {
-    return "account_id_format";
-  }
   return null;
 }
 
-export async function createSchoolAction(formData: FormData): Promise<void> {
-  const me = await requireAdmin();
-  ensureSuper(me.role);
-
-  const data = parseForm(formData);
-  const err = validate(data, false);
-  if (err) redirect(`/admin/schools?error=${err}`);
-
-  try {
-    await pool.query(
-      `INSERT INTO schools
-         (id, name, kind, aws_account_id, s3_bucket, s3_prefix, aws_region, role_arn)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [
-        data.id,
-        data.name,
-        data.kind,
-        data.awsAccountId,
-        data.s3Bucket,
-        data.s3Prefix,
-        data.awsRegion,
-        data.roleArn,
-      ],
-    );
-  } catch (err: unknown) {
-    const e = err as { code?: string };
-    if (e.code === "23505") redirect("/admin/schools?error=id_taken");
-    throw err;
-  }
-
-  await recordAudit(me.username, "school.create", data.id, {
-    name: data.name,
-    kind: data.kind,
-  });
-  revalidatePath("/admin/schools");
-  redirect("/admin/schools?ok=created");
-}
-
+// 학교 편집 — 이름 / 구분 / 사내 표시 만 수정. S3/IC 설정은 connections 에서.
 export async function updateSchoolAction(formData: FormData): Promise<void> {
   const me = await requireAdmin();
   ensureSuper(me.role);
@@ -97,29 +38,21 @@ export async function updateSchoolAction(formData: FormData): Promise<void> {
   const id = String(formData.get("id") ?? "").trim().toLowerCase();
   if (!id) redirect("/admin/schools?error=id_required");
   const data = parseForm(formData);
-  // id 는 PK 라 수정 불가 — 폼에서 받은 id 는 식별자
-  const err = validate({ ...data, id }, true);
+  const err = validate({ ...data, id });
   if (err) redirect(`/admin/schools/${id}/edit?error=${err}`);
 
   const { rowCount } = await pool.query(
     `UPDATE schools
-        SET name = $2, kind = $3, aws_account_id = $4,
-            s3_bucket = $5, s3_prefix = $6, aws_region = $7, role_arn = $8
+        SET name = $2, kind = $3, is_internal = $4
       WHERE id = $1`,
-    [
-      id,
-      data.name,
-      data.kind,
-      data.awsAccountId,
-      data.s3Bucket,
-      data.s3Prefix,
-      data.awsRegion,
-      data.roleArn,
-    ],
+    [id, data.name, data.kind, data.isInternal],
   );
   if (!rowCount) redirect("/admin/schools?error=not_found");
 
-  await recordAudit(me.username, "school.update", id, { name: data.name });
+  await recordAudit(me.username, "school.update", id, {
+    name: data.name,
+    is_internal: data.isInternal,
+  });
   revalidatePath("/admin/schools");
   revalidatePath(`/admin/schools/${id}/edit`);
   redirect("/admin/schools?ok=updated");
@@ -139,25 +72,22 @@ export async function deleteSchoolAction(formData: FormData): Promise<void> {
   const confirm = String(formData.get("confirm") ?? "").trim().toLowerCase();
   if (!id) redirect("/admin/schools?error=id_required");
 
-  // 카운트 — 분기 + 감사 로그용
+  // 카운트 — 분기 + 감사 로그용. ingest_runs 는 connection 단위라 학교 삭제로 안 건드림.
   const { rows: countRows } = await pool.query<{
     students: string;
     usage: string;
     model_usage: string;
-    runs: string;
   }>(
     `SELECT
        (SELECT count(*) FROM students    WHERE school_id = $1)::text AS students,
        (SELECT count(*) FROM daily_usage WHERE school_id = $1)::text AS usage,
-       (SELECT count(*) FROM model_usage WHERE school_id = $1)::text AS model_usage,
-       (SELECT count(*) FROM ingest_runs WHERE school_id = $1)::text AS runs`,
+       (SELECT count(*) FROM model_usage WHERE school_id = $1)::text AS model_usage`,
     [id],
   );
   const counts = {
     students: Number(countRows[0].students),
     usage: Number(countRows[0].usage),
     modelUsage: Number(countRows[0].model_usage),
-    runs: Number(countRows[0].runs),
   };
 
   // ── students_only: 학생 + 학생들이 만든 데이터 wipe. 학교 + 인제스트 로그 보존.
@@ -201,7 +131,6 @@ export async function deleteSchoolAction(formData: FormData): Promise<void> {
       await client.query("BEGIN");
       await client.query(`DELETE FROM ranking_snapshot WHERE school_id = $1`, [id]);
       await client.query(`DELETE FROM monthly_champion_snapshot WHERE school_id = $1`, [id]);
-      await client.query(`DELETE FROM ingest_runs WHERE school_id = $1`, [id]);
       await client.query(`DELETE FROM model_usage WHERE school_id = $1`, [id]);
       await client.query(`DELETE FROM daily_usage WHERE school_id = $1`, [id]);
       if (counts.students > 0) {
@@ -223,7 +152,6 @@ export async function deleteSchoolAction(formData: FormData): Promise<void> {
       students_deleted: counts.students,
       usage_deleted: counts.usage,
       model_usage_deleted: counts.modelUsage,
-      ingest_runs_deleted: counts.runs,
     });
     revalidatePath("/admin/schools");
     redirect("/admin/schools?ok=purged");

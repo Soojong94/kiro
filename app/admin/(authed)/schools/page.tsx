@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { pool } from "@/lib/db";
-import { createSchoolAction } from "./actions";
 
 export const metadata = {
   title: "학교 관리 · Kiro 관리자",
@@ -12,11 +11,8 @@ interface SchoolRow {
   id: string;
   name: string;
   kind: "high_school" | "university" | "region";
-  awsAccountId: string | null;
-  s3Bucket: string | null;
-  s3Prefix: string | null;
-  awsRegion: string;
-  roleArn: string | null;
+  connectionId: string | null;
+  isInternal: boolean;
   studentCount: number;
   createdAt: string;
 }
@@ -82,17 +78,13 @@ export default async function SchoolsPage({
     id: string;
     name: string;
     kind: SchoolRow["kind"];
-    aws_account_id: string | null;
-    s3_bucket: string | null;
-    s3_prefix: string | null;
-    aws_region: string;
-    role_arn: string | null;
+    connection_id: string | null;
+    is_internal: boolean;
     student_count: string;
     created_at: string;
   }>(
     `
-    SELECT s.id, s.name, s.kind, s.aws_account_id, s.s3_bucket, s.s3_prefix,
-           s.aws_region, s.role_arn,
+    SELECT s.id, s.name, s.kind, s.connection_id, s.is_internal,
            (SELECT count(*) FROM students WHERE school_id = s.id)::text AS student_count,
            to_char(s.created_at, 'YYYY-MM-DD') AS created_at
       FROM schools s
@@ -105,11 +97,8 @@ export default async function SchoolsPage({
     id: r.id,
     name: r.name,
     kind: r.kind,
-    awsAccountId: r.aws_account_id,
-    s3Bucket: r.s3_bucket,
-    s3Prefix: r.s3_prefix,
-    awsRegion: r.aws_region,
-    roleArn: r.role_arn,
+    connectionId: r.connection_id,
+    isInternal: r.is_internal,
     studentCount: Number(r.student_count),
     createdAt: r.created_at,
   }));
@@ -121,9 +110,18 @@ export default async function SchoolsPage({
           학교 관리
         </h1>
         <p className="mt-1 text-[12.5px] text-[#5f6b7a]">
-          학교 신규 등록 + S3 인제스트 설정. id 는 한 번 정하면 변경 불가입니다.
+          학교 메타 관리 (이름 / 사내 표시 / 학기 교체용 wipe). S3 인제스트 설정은 AWS 연결에서.
         </p>
       </header>
+
+      <div className="mb-6 rounded-md bg-[#f2f8fd] ring-1 ring-[#cce4f5] px-4 py-3 text-[12.5px] text-[#033160]">
+        <strong>학교는 AWS IAM Identity Center 그룹 sync 가 자동 등록합니다.</strong>{" "}
+        새 학교가 합류하려면 먼저{" "}
+        <a href="/admin/connections" className="underline font-semibold">AWS 연결</a>{" "}
+        에 connection 을 등록하고 sync 를 돌리면 학교가 자동 생성됩니다.
+        <br />
+        편집에서는 이름 / 사내 표시(`is_internal`) / 학기 교체용 wipe 만 조정합니다.
+      </div>
 
       {okMsg && (
         <div className="mb-4 rounded-md bg-[#f1f8f5] ring-1 ring-[#9bd4b7] px-3 py-2 text-[12.5px] text-[#1d6638]">
@@ -135,61 +133,6 @@ export default async function SchoolsPage({
           {errMsg}
         </div>
       )}
-
-      {/* 신규 등록 */}
-      <section className="mb-8 rounded-lg bg-white p-5 ring-1 ring-[#eaeded] shadow-[0_1px_2px_rgba(0,28,36,0.05)]">
-        <h2 className="text-[15px] font-bold text-[#16191f] mb-3">새 학교 등록</h2>
-        <form
-          action={createSchoolAction}
-          className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[13px]"
-        >
-          <FormField label="id (예: snu)" required>
-            <Input name="id" required placeholder="lowercase, 2~32자" />
-          </FormField>
-          <FormField label="이름" required>
-            <Input name="name" required placeholder="서울대학교" />
-          </FormField>
-          <FormField label="구분" required>
-            <select
-              name="kind"
-              required
-              defaultValue="university"
-              className="w-full px-2.5 py-1.5 rounded-md ring-1 ring-[#d5dbdb] bg-white text-[13px]"
-            >
-              <option value="university">대학교</option>
-              <option value="high_school">고등학교</option>
-              <option value="region">권역/기타</option>
-            </select>
-          </FormField>
-          <FormField label="AWS 계정 ID (12자리 숫자)">
-            <Input name="aws_account_id" placeholder="123456789012" />
-          </FormField>
-          <FormField label="S3 버킷명">
-            <Input name="s3_bucket" placeholder="***REMOVED-BUCKET***" />
-          </FormField>
-          <FormField label="S3 prefix (옵션)">
-            <Input name="s3_prefix" placeholder="***REMOVED-PREFIX***" />
-          </FormField>
-          <FormField label="AWS 리전">
-            <Input
-              name="aws_region"
-              defaultValue="ap-northeast-2"
-              placeholder="ap-northeast-2"
-            />
-          </FormField>
-          <FormField label="Role ARN (cross-account)">
-            <Input name="role_arn" placeholder="arn:aws:iam::...:role/..." />
-          </FormField>
-          <div className="sm:col-span-2 flex justify-end">
-            <button
-              type="submit"
-              className="px-4 py-2 rounded-md bg-[#232f3e] text-white text-[13px] font-semibold hover:bg-[#161e2d] transition-colors cursor-pointer"
-            >
-              등록
-            </button>
-          </div>
-        </form>
-      </section>
 
       {/* 리스트 */}
       <section className="rounded-lg bg-white ring-1 ring-[#eaeded] shadow-[0_1px_2px_rgba(0,28,36,0.05)] overflow-hidden">
@@ -239,8 +182,8 @@ export default async function SchoolsPage({
                 <Th>이름</Th>
                 <Th>구분</Th>
                 <Th>학생 수</Th>
-                <Th>S3 버킷</Th>
-                <Th>리전</Th>
+                <Th>Connection</Th>
+                <Th>사내</Th>
                 <Th>생성일</Th>
                 <Th>액션</Th>
               </tr>
@@ -260,12 +203,19 @@ export default async function SchoolsPage({
                   <Td className="text-[#5f6b7a]">{KIND_LABEL[s.kind]}</Td>
                   <Td className="tabular-nums text-[#414d5c]">{s.studentCount}</Td>
                   <Td className="font-mono text-[11.5px] text-[#5f6b7a]">
-                    {s.s3Bucket ?? "—"}
-                    {s.s3Prefix && (
-                      <span className="text-[#95a5b8]">/{s.s3Prefix}</span>
+                    {s.connectionId ?? (
+                      <span className="text-[#d13212]">미연결</span>
                     )}
                   </Td>
-                  <Td className="text-[#5f6b7a]">{s.awsRegion}</Td>
+                  <Td>
+                    {s.isInternal ? (
+                      <span className="px-1.5 py-0.5 rounded bg-[#ec7211] text-white text-[10px] font-bold">
+                        사내
+                      </span>
+                    ) : (
+                      <span className="text-[#95a5b8]">—</span>
+                    )}
+                  </Td>
                   <Td className="text-[#5f6b7a] tabular-nums">{s.createdAt}</Td>
                   <Td>
                     <Link
@@ -285,34 +235,6 @@ export default async function SchoolsPage({
   );
 }
 
-function FormField({
-  label,
-  required,
-  children,
-}: {
-  label: string;
-  required?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="block">
-      <span className="block text-[11.5px] font-semibold text-[#414d5c] mb-1">
-        {label}
-        {required && <span className="ml-0.5 text-[#d13212]">*</span>}
-      </span>
-      {children}
-    </label>
-  );
-}
-
-function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <input
-      {...props}
-      className="w-full px-2.5 py-1.5 rounded-md ring-1 ring-[#d5dbdb] bg-white text-[13px] text-[#16191f] focus:outline-none focus:ring-2 focus:ring-[#0972d3]"
-    />
-  );
-}
 
 function Th({ children }: { children: React.ReactNode }) {
   return (

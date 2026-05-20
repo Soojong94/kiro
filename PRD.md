@@ -2,12 +2,12 @@
 
 | 항목 | 값 |
 | --- | --- |
-| 문서 버전 | v0.2 (multi-school) |
-| 작성일 | 2026-05-14 / 갱신 2026-05-15 |
+| 문서 버전 | v0.3 (connections + IC sync) |
+| 작성일 | 2026-05-14 / 최종 갱신 2026-05-20 |
 | 담당 | 자체 (회사 내부) |
-| 대상 | 회사가 AWS Kiro를 제공한 **여러 학교(고/대 혼재)** 학생 / 회사 내부 보고 담당자 |
-| 1차 목표 출시 | MVP — 학교 통합 공개 대시보드 + 사내 로그인 대시보드 |
-| 차후 목표 | 학교별 필터 / 학생별 토큰 한도 상향 워크플로 |
+| 대상 | TBIT 가 AWS Kiro 를 제공한 **여러 학교** 학생 / TBIT 내부 보고 담당자 / 학교 운영자(뷰어) |
+| 현재 상태 | MVP 동작 — 학생 통합 랭킹, 어드민 대시보드, IC 자동 sync, S3 ingest 멱등 처리, 90일 비번 알림 |
+| 차후 목표 | AWS SES 마이그레이션, cross-account 학교 실제 합류, 자동 백업 |
 
 ---
 
@@ -29,8 +29,11 @@
 
 | 역할 | 페이지 | 보이는 정보 | 인증 |
 | --- | --- | --- | --- |
-| 학생/방문자 | `/` 공개 대시보드 | **전체 학교 통합** 랭킹. 마스킹 학생명 + 학교명. 1위만 강조. | 없음 |
-| 사내 관리자 | `/admin/*` | 위 + **실명**, UserId, 모델별 사용량, **학교별 분리/필터**, CSV 추출, 학생 한도 상향(차후) | username + password (Argon2id) + iron-session |
+| 학생 (Kiro 사용자) | `/`, `/champions` | 본교 디폴트 + 전체 조직 토글, 마스킹 학생명. 본인 순위 핀 카드. | 학생 username + password (Argon2id) + iron-session 8h. 비번은 sync 가 자동 발급 (`samples/credentials/*.csv`) 또는 `/login/recover` 로 이메일 재설정 |
+| 학교 운영자 (Kiro 미사용 뷰어) | 학생과 동일 | 학생과 동일 (사용량 데이터 없으니 랭킹에 본인 안 보임) | 슈퍼 어드민이 `/admin/students` 의 "수동 추가" 폼으로 발급 |
+| 학교 어드민 | `/admin/*` | 본교 한정 — 학생 목록 + 비번 재발급/제거 + 본교 사용 현황 | 슈퍼 어드민이 발급. RBAC 로 본교만 노출 |
+| 슈퍼 어드민 (TBIT) | `/admin/*` | 전 조직. 추가로 connection 관리 (S3/IC/role_arn), 학교 destructive 작업 | bootstrap-admin 으로 최초 1명 → 추가 발급은 어드민 페이지에서 |
+| 사내 학교 (TBIT) 학생 | `/`, `/champions` | **랭킹/공개 페이지에서 완전 제외** (URL 직접 입력도 차단). 어드민에서만 보임 | 학생과 동일 |
 
 ## 4. 핵심 데이터 정의
 
@@ -39,8 +42,8 @@
 | CSV 컬럼 | 우리 컬럼 | 의미 |
 | --- | --- | --- |
 | `Date` | `daily_usage.date` | 해당 일자 (UTC) |
-| (없음, ingest 시 주입) | `daily_usage.school_id` | 어느 학교 소속인지. CSV가 떨어진 S3 버킷 = 학교로 매핑 |
-| `UserId` | `daily_usage.user_id` | IAM Identity Center sub. `(school_id, user_id)`가 자연키 |
+| (없음, ingest 시 주입) | `daily_usage.school_id` | 학생의 **실제 학교** (= IC 그룹). ingest 가 user_id 로 students 테이블 조회해서 매핑. CSV 한 벌에 여러 학교 학생이 섞여있어도 올바르게 분배됨 |
+| `UserId` | `daily_usage.user_id` | IAM Identity Center 사용자 UUID. `(school_id, user_id)`가 자연키 |
 | `Client_Type` | `daily_usage.client_type` | KIRO_IDE / KIRO_CLI / PLUGIN |
 | `Subscription_Tier` | `students.tier`(스냅샷) | Pro / Pro+ / Power |
 | `ProfileId` | (저장만) | 디버그용 |

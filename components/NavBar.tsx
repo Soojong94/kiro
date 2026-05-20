@@ -20,7 +20,17 @@ export async function NavBar({ hideAuth = false }: { hideAuth?: boolean } = {}) 
       }}
     >
       <div className="mx-auto max-w-5xl px-5 sm:px-6 h-16 sm:h-18 lg:h-20 flex items-center justify-between gap-4">
-        <KiroLogo />
+        <div className="flex items-center gap-3">
+          <KiroLogo />
+          {!hideAuth && loggedIn && (
+            <Link
+              href="/"
+              className="px-3 py-1.5 rounded-md bg-white/10 text-white text-[12px] font-semibold hover:bg-white/20 transition-colors cursor-pointer"
+            >
+              홈
+            </Link>
+          )}
+        </div>
         <div className="flex items-center gap-3">
           {!hideAuth && loggedIn && (
             <>

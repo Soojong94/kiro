@@ -20,14 +20,14 @@ function isValidEmail(e: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 }
 
-// 학생 생성 + 로그인 계정 발급 (한 폼)
+// 뷰어 계정 발급 — Kiro 미사용자(학교 운영자 등) 가 랭킹을 볼 수 있게 슈퍼 어드민이 수동 생성.
+// user_id 는 항상 자동 생성 (IC sync 가 만든 학생과 충돌 방지).
+// cohort 는 IC API 가 제공하지 않으므로 UI/DB 둘 다 안 채움.
 export async function createStudentAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
 
   const schoolId = String(formData.get("school_id") ?? "").trim();
-  const userIdRaw = String(formData.get("user_id") ?? "").trim();
   const realName = String(formData.get("real_name") ?? "").trim();
-  const cohort = String(formData.get("cohort") ?? "").trim() || null;
   const username = String(formData.get("username") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const initialPassword = String(formData.get("initial_password") ?? "");
@@ -35,8 +35,8 @@ export async function createStudentAction(formData: FormData): Promise<void> {
   if (!schoolId || !realName || !username || !email || !initialPassword) {
     redirect("/admin/students?error=required");
   }
-  // user_id 미입력 시 자동 생성 (Kiro 매핑 전 임시)
-  const userId = userIdRaw || randomUUID();
+  // 항상 새 UUID 발급 — IC 사용자 UUID 와 충돌 가능성 사실상 0
+  const userId = randomUUID();
 
   if (!isValidUsername(username)) {
     redirect("/admin/students?error=username_format");
@@ -55,23 +55,19 @@ export async function createStudentAction(formData: FormData): Promise<void> {
   try {
     await pool.query(
       `INSERT INTO students
-         (school_id, user_id, real_name, cohort,
+         (school_id, user_id, real_name,
           username, password_hash, email, must_change_password)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, true)`,
-      [schoolId, userId, realName, cohort, username, passwordHash, email],
+       VALUES ($1, $2, $3, $4, $5, $6, true)`,
+      [schoolId, userId, realName, username, passwordHash, email],
     );
   } catch (err: unknown) {
     const e = err as { code?: string; constraint?: string };
     if (e.code === "23505") {
-      // unique violation
       if (e.constraint?.includes("username")) {
         redirect("/admin/students?error=username_taken");
       }
       if (e.constraint?.includes("email")) {
         redirect("/admin/students?error=email_taken");
-      }
-      if (e.constraint?.includes("pkey")) {
-        redirect("/admin/students?error=user_id_taken");
       }
     }
     throw err;

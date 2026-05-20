@@ -1,4 +1,5 @@
-import Link from "next/link";
+import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
+import { PasswordField } from "@/components/PasswordField";
 import { requireAdmin } from "@/lib/auth";
 import { pool } from "@/lib/db";
 import {
@@ -20,7 +21,6 @@ interface StudentRow {
   schoolName: string;
   userId: string;
   realName: string;
-  cohort: string | null;
   username: string | null;
   email: string | null;
   mustChange: boolean;
@@ -68,7 +68,7 @@ async function loadStudents(
 
   const where = conds.length ? `WHERE ${conds.join(" AND ")}` : "";
   const sql = `
-    SELECT s.school_id, sc.name AS school_name, s.user_id, s.real_name, s.cohort,
+    SELECT s.school_id, sc.name AS school_name, s.user_id, s.real_name,
            s.username, s.email, s.must_change_password,
            to_char(s.last_login_at, 'YYYY-MM-DD HH24:MI') AS last_login_at,
            to_char(s.created_at,    'YYYY-MM-DD')         AS created_at
@@ -82,7 +82,6 @@ async function loadStudents(
     school_name: string;
     user_id: string;
     real_name: string;
-    cohort: string | null;
     username: string | null;
     email: string | null;
     must_change_password: boolean;
@@ -94,7 +93,6 @@ async function loadStudents(
     schoolName: r.school_name,
     userId: r.user_id,
     realName: r.real_name,
-    cohort: r.cohort,
     username: r.username,
     email: r.email,
     mustChange: r.must_change_password,
@@ -110,7 +108,6 @@ const FORM_ERRORS: Record<string, string> = {
   password_short: "초기 비밀번호는 8자 이상이어야 합니다.",
   username_taken: "이미 사용 중인 아이디입니다.",
   email_taken: "이미 등록된 이메일입니다.",
-  user_id_taken: "동일한 학교에 같은 user_id 가 이미 존재합니다.",
   reset_invalid: "재발급 입력값이 올바르지 않습니다 (비번 8자 이상).",
   not_found: "대상 학생을 찾을 수 없습니다.",
   invalid: "요청이 올바르지 않습니다.",
@@ -147,24 +144,24 @@ export default async function StudentsPage({
 
   return (
     <main className="mx-auto max-w-6xl px-5 sm:px-6 py-8">
-      <header className="mb-6 flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-[22px] sm:text-[26px] font-bold tracking-tight text-[#16191f]">
-            학생 계정 관리
-          </h1>
-          <p className="mt-1 text-[12.5px] text-[#5f6b7a]">
-            {admin.role === "super"
-              ? "전 조직의 학생을 관리합니다."
-              : `${admin.schoolId} 학교의 학생만 관리할 수 있습니다.`}
-          </p>
-        </div>
-        <Link
-          href="/admin/students/upload"
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md bg-[#0972d3] text-white text-[12.5px] font-semibold hover:bg-[#033160] transition-colors cursor-pointer"
-        >
-          📥 CSV 일괄 등록
-        </Link>
+      <header className="mb-6">
+        <h1 className="text-[22px] sm:text-[26px] font-bold tracking-tight text-[#16191f]">
+          학생 계정 관리
+        </h1>
+        <p className="mt-1 text-[12.5px] text-[#5f6b7a]">
+          {admin.role === "super"
+            ? "전 조직의 학생을 관리합니다."
+            : `${admin.schoolId} 학교의 학생만 관리할 수 있습니다.`}
+        </p>
       </header>
+
+      <div className="mb-6 rounded-md bg-[#f2f8fd] ring-1 ring-[#cce4f5] px-4 py-3 text-[12.5px] text-[#033160]">
+        <strong>학생 계정은 AWS IAM Identity Center 에서 자동 등록됩니다.</strong>{" "}
+        IC 그룹에 사용자를 추가하면 다음 sync (매일 02:15 UTC) 가 학생 행을 만듭니다.
+        <br />
+        아래 <em>수동 추가</em> 폼은 <strong>Kiro 를 사용하지 않는 뷰어 계정</strong>
+        (학교 운영자 등) 발급 전용입니다. 이 계정은 랭킹에 노출되지 않습니다 (사용량 데이터 없음).
+      </div>
 
       {okMsg && (
         <div className="mb-4 rounded-md bg-[#f1f8f5] ring-1 ring-[#9bd4b7] px-3 py-2 text-[12.5px] text-[#1d6638]">
@@ -177,72 +174,66 @@ export default async function StudentsPage({
         </div>
       )}
 
-      {/* 생성 폼 */}
-      <section className="mb-8 rounded-lg bg-white p-5 ring-1 ring-[#eaeded] shadow-[0_1px_2px_rgba(0,28,36,0.05)]">
-        <h2 className="text-[15px] font-bold text-[#16191f] mb-3">
-          새 학생 계정 발급
-        </h2>
-        <form action={createStudentAction} className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[13px]">
-          <FormField label="학교" required>
-            {admin.role === "super" ? (
-              <select
-                name="school_id"
-                required
-                defaultValue=""
-                className="w-full px-2.5 py-1.5 rounded-md ring-1 ring-[#d5dbdb] bg-white"
+      {/* 수동 추가 폼 (뷰어 계정용) — 기본 접힘 */}
+      <details className="mb-8 rounded-lg bg-white ring-1 ring-[#eaeded] shadow-[0_1px_2px_rgba(0,28,36,0.05)]">
+        <summary className="cursor-pointer px-5 py-3 text-[13.5px] font-semibold text-[#16191f] hover:bg-[#fafafa] select-none rounded-lg">
+          ＋ 수동 추가 (뷰어 계정용)
+        </summary>
+        <div className="px-5 pb-5 pt-1">
+          <form action={createStudentAction} className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[13px]">
+            <FormField label="학교" required>
+              {admin.role === "super" ? (
+                <select
+                  name="school_id"
+                  required
+                  defaultValue=""
+                  className="w-full px-2.5 py-1.5 rounded-md ring-1 ring-[#d5dbdb] bg-white"
+                >
+                  <option value="" disabled>학교 선택…</option>
+                  {schools.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name} ({s.id})</option>
+                  ))}
+                </select>
+              ) : (
+                <>
+                  <input type="hidden" name="school_id" value={admin.schoolId ?? ""} />
+                  <input
+                    type="text"
+                    value={`${schools[0]?.name ?? ""} (${admin.schoolId ?? ""})`}
+                    disabled
+                    className="w-full px-2.5 py-1.5 rounded-md ring-1 ring-[#d5dbdb] bg-[#f4f5f5] text-[#5f6b7a]"
+                  />
+                </>
+              )}
+            </FormField>
+
+            <FormField label="실명" required>
+              <Input name="real_name" placeholder="홍길동" required />
+            </FormField>
+
+            <FormField label="아이디" required>
+              <Input name="username" placeholder="hong.gildong" required />
+            </FormField>
+
+            <FormField label="이메일" required>
+              <Input name="email" type="email" placeholder="hong@school.kr" required />
+            </FormField>
+
+            <FormField label="초기 비밀번호 (8자 이상)" required>
+              <PasswordField name="initial_password" required minLength={8} />
+            </FormField>
+
+            <div className="flex items-end">
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-md bg-[#232f3e] text-white text-[13px] font-semibold hover:bg-[#161e2d] transition-colors cursor-pointer"
               >
-                <option value="" disabled>학교 선택…</option>
-                {schools.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name} ({s.id})</option>
-                ))}
-              </select>
-            ) : (
-              <>
-                <input type="hidden" name="school_id" value={admin.schoolId ?? ""} />
-                <input
-                  type="text"
-                  value={`${schools[0]?.name ?? ""} (${admin.schoolId ?? ""})`}
-                  disabled
-                  className="w-full px-2.5 py-1.5 rounded-md ring-1 ring-[#d5dbdb] bg-[#f4f5f5] text-[#5f6b7a]"
-                />
-              </>
-            )}
-          </FormField>
-
-          <FormField label="실명" required>
-            <Input name="real_name" placeholder="홍길동" required />
-          </FormField>
-
-          <FormField label="Kiro user_id (비워두면 자동 생성)">
-            <Input name="user_id" placeholder="00000000-0000-4000-8000-000000000000" />
-          </FormField>
-
-          <FormField label="기수 / 학번">
-            <Input name="cohort" placeholder="2026-1학년" />
-          </FormField>
-
-          <FormField label="아이디" required>
-            <Input name="username" placeholder="hong.gildong" required />
-          </FormField>
-
-          <FormField label="이메일" required>
-            <Input name="email" type="email" placeholder="hong@school.kr" required />
-          </FormField>
-
-          <FormField label="초기 비밀번호 (8자 이상)" required>
-            <Input name="initial_password" type="text" required />
-          </FormField>
-
-          <div className="flex items-end">
-            <button
-              type="submit"
-              className="px-4 py-2 rounded-md bg-[#232f3e] text-white text-[13px] font-semibold hover:bg-[#161e2d] transition-colors"
-            >
-              계정 발급
-            </button>
-          </div>
-        </form>
-      </section>
+                계정 발급
+              </button>
+            </div>
+          </form>
+        </div>
+      </details>
 
       {/* 학생 리스트 */}
       <section className="rounded-lg bg-white ring-1 ring-[#eaeded] shadow-[0_1px_2px_rgba(0,28,36,0.05)] overflow-hidden">
@@ -296,7 +287,6 @@ export default async function StudentsPage({
                 <Th>실명</Th>
                 <Th>아이디</Th>
                 <Th>이메일</Th>
-                <Th>기수</Th>
                 <Th>최근 로그인</Th>
                 <Th>발급일</Th>
                 <Th>액션</Th>
@@ -305,7 +295,7 @@ export default async function StudentsPage({
             <tbody>
               {students.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-[#5f6b7a]">
+                  <td colSpan={7} className="px-4 py-8 text-center text-[#5f6b7a]">
                     아직 등록된 학생이 없습니다.
                   </td>
                 </tr>
@@ -323,7 +313,6 @@ export default async function StudentsPage({
                     )}
                   </Td>
                   <Td className="text-[#414d5c]">{s.email ?? "—"}</Td>
-                  <Td className="text-[#5f6b7a]">{s.cohort ?? "—"}</Td>
                   <Td className="text-[#5f6b7a] tabular-nums">{s.lastLoginAt ?? "—"}</Td>
                   <Td className="text-[#5f6b7a] tabular-nums">{s.createdAt}</Td>
                   <Td>
@@ -410,17 +399,16 @@ function ResetForm({
     <form action={resetStudentPasswordAction} className="inline-flex items-center gap-1">
       <input type="hidden" name="school_id" value={schoolId} />
       <input type="hidden" name="user_id" value={userId} />
-      <input
-        type="text"
+      <PasswordField
         name="new_password"
         placeholder="새 비번"
         required
         minLength={8}
-        className="w-24 px-2 py-1 rounded-md ring-1 ring-[#d5dbdb] bg-white text-[11px]"
+        size="small"
       />
       <button
         type="submit"
-        className="px-2 py-1 rounded-md bg-white ring-1 ring-[#d5dbdb] text-[11px] font-semibold text-[#414d5c] hover:bg-[#f2f3f3]"
+        className="px-2 py-1 rounded-md bg-white ring-1 ring-[#d5dbdb] text-[11px] font-semibold text-[#414d5c] hover:bg-[#f2f3f3] cursor-pointer"
       >
         재발급
       </button>
@@ -441,13 +429,13 @@ function DeleteForm({
     <form action={deleteStudentAction}>
       <input type="hidden" name="school_id" value={schoolId} />
       <input type="hidden" name="user_id" value={userId} />
-      <button
-        type="submit"
+      <ConfirmSubmitButton
+        message={`'${realName}' 학생을 삭제합니다. 누적 사용량/모델 사용량도 함께 삭제됩니다. 진행할까요?`}
         className="px-2 py-1 rounded-md bg-white ring-1 ring-[#d5dbdb] text-[11px] font-semibold text-[#7c2c2c] hover:bg-[#fdf2f0]"
         title={`'${realName}' 삭제`}
       >
         제거
-      </button>
+      </ConfirmSubmitButton>
     </form>
   );
 }

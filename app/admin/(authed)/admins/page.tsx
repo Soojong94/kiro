@@ -1,4 +1,6 @@
 import { redirect } from "next/navigation";
+import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
+import { PasswordField } from "@/components/PasswordField";
 import { requireAdmin, type AdminRole } from "@/lib/auth";
 import { pool } from "@/lib/db";
 import {
@@ -177,7 +179,7 @@ export default async function AdminsPage({
             <Input name="email" type="email" placeholder="admin@school.kr" />
           </FormField>
           <FormField label="초기 비밀번호 (8자 이상)" required>
-            <Input name="initial_password" type="text" required />
+            <PasswordField name="initial_password" required minLength={8} />
           </FormField>
           <div className="flex items-end">
             <button
@@ -344,17 +346,16 @@ function ResetForm({ adminId }: { adminId: number }) {
   return (
     <form action={resetAdminPasswordAction} className="inline-flex items-center gap-1">
       <input type="hidden" name="admin_id" value={adminId} />
-      <input
-        type="text"
+      <PasswordField
         name="new_password"
         placeholder="새 비번"
         required
         minLength={8}
-        className="w-24 px-2 py-1 rounded-md ring-1 ring-[#d5dbdb] bg-white text-[11px]"
+        size="small"
       />
       <button
         type="submit"
-        className="px-2 py-1 rounded-md bg-white ring-1 ring-[#d5dbdb] text-[11px] font-semibold text-[#414d5c] hover:bg-[#f2f3f3]"
+        className="px-2 py-1 rounded-md bg-white ring-1 ring-[#d5dbdb] text-[11px] font-semibold text-[#414d5c] hover:bg-[#f2f3f3] cursor-pointer"
       >
         재발급
       </button>
@@ -366,13 +367,13 @@ function DeleteForm({ adminId, username }: { adminId: number; username: string }
   return (
     <form action={deleteAdminAction}>
       <input type="hidden" name="admin_id" value={adminId} />
-      <button
-        type="submit"
+      <ConfirmSubmitButton
+        message={`'${username}' 어드민을 삭제합니다. 진행할까요?`}
         className="px-2 py-1 rounded-md bg-white ring-1 ring-[#d5dbdb] text-[11px] font-semibold text-[#7c2c2c] hover:bg-[#fdf2f0]"
         title={`'${username}' 삭제`}
       >
         삭제
-      </button>
+      </ConfirmSubmitButton>
     </form>
   );
 }

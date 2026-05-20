@@ -1,0 +1,13 @@
+[Unit]
+Description=Kiro — S3 CSV ingest (어제 자 사용량 적재)
+Documentation=https://github.com/Soojong94/kiro
+After=docker.service kiro-sync-identity.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/home/ubuntu/kiro
+ExecStart=/usr/bin/docker compose -f docker-compose.prod.yml exec -T next npm run ingest
+StandardOutput=journal
+StandardError=journal

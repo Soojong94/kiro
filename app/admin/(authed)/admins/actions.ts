@@ -84,7 +84,7 @@ export async function resetAdminPasswordAction(formData: FormData): Promise<void
 
   const hash = await hashPassword(newPassword);
   const { rowCount } = await pool.query(
-    `UPDATE admins SET password_hash = $1 WHERE id = $2`,
+    `UPDATE admins SET password_hash = $1, password_changed_at = now() WHERE id = $2`,
     [hash, adminId],
   );
   if (!rowCount) redirect("/admin/admins?error=not_found");

@@ -254,9 +254,6 @@ export default async function AdminDashboardPage({
         </div>
       </section>
 
-      <footer className="mt-8 text-center text-[11.5px] text-[#95a5b8]">
-        실제 데이터는 인제스트 이후 자동 반영 — 현재는 목업
-      </footer>
     </main>
   );
 }

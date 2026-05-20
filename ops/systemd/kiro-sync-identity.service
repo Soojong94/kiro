@@ -1,0 +1,14 @@
+[Unit]
+Description=Kiro — AWS IAM Identity Center → schools/students sync
+Documentation=https://github.com/Soojong94/kiro
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/home/ubuntu/kiro
+ExecStart=/usr/bin/docker compose -f docker-compose.prod.yml exec -T next npm run sync-identity-center
+StandardOutput=journal
+StandardError=journal
+# 운영 중 한 번 실패해도 다음 타이머 사이클에서 자동 재시도 — 별도 Restart 정책 불필요.

@@ -8,16 +8,25 @@ export type SubscriptionTier = "PRO" | "PRO_PLUS" | "POWER" | "FREE" | (string &
 export type SchoolKind = "high_school" | "university" | "region";
 
 export interface School {
-  id: string;          // 안정적인 슬러그. URL 쿼리에 그대로 노출.
+  id: string;          // 안정적인 슬러그 (= IC 그룹명). URL 쿼리에 그대로 노출.
   name: string;        // 화면 표기명 (예: "△△대학교")
   kind: SchoolKind;
   isInternal?: boolean; // 사내용 (TBIT 등) — 학생 랭킹/공개 페이지에서 제외.
-  // 아래 필드는 ingest 워커만 사용. 공개 응답에 절대 포함 금지.
+  connectionId?: string; // 어느 connection 의 IC/S3 에서 가져오는지. ingest/sync 가 사용.
+}
+
+// AWS 계정 단위 인제스트 출처. 한 connection 이 N 학교(=IC 그룹) 호스팅 가능.
+// 슈퍼 어드민만 등록/편집. ingest/sync 가 이 테이블을 1차 키로 동작.
+export interface Connection {
+  id: string;
+  name: string;
   awsAccountId?: string;
+  icInstanceId?: string;   // Identity Center 인스턴스 ID
+  icRegion: string;
   s3Bucket?: string;
   s3Prefix?: string;
-  awsRegion?: string;
-  roleArn?: string;    // null이면 우리 계정 직접 read, 있으면 cross-account AssumeRole
+  s3Region: string;
+  roleArn?: string;        // null = 자기 계정 (base creds). 있으면 cross-account AssumeRole
 }
 
 export interface DailyUsage {
