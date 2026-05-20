@@ -33,13 +33,28 @@ export default async function AdminAuthedLayout({
   }
   const isSuper = session.role === "super";
 
-  // 비번 나이 조회 (90일 이상이면 클라이언트가 모달 띄움)
-  const { rows: ageRows } = await pool.query<{ days: string }>(
-    `SELECT EXTRACT(EPOCH FROM (now() - password_changed_at)) / 86400 AS days
+  // 비번 나이 + 미루기 상태 조회. 모달 표시 조건:
+  //   비번 90일+ 묵음 AND (한 번도 안 미뤘거나 미룬 지 30일+ 지남)
+  const { rows: ageRows } = await pool.query<{
+    age_days: string;
+    snooze_days: string | null;
+  }>(
+    `SELECT
+       EXTRACT(EPOCH FROM (now() - password_changed_at)) / 86400 AS age_days,
+       CASE
+         WHEN password_reminded_at IS NULL THEN NULL
+         ELSE EXTRACT(EPOCH FROM (now() - password_reminded_at)) / 86400
+       END AS snooze_days
        FROM admins WHERE id = $1`,
     [session.adminId],
   );
-  const passwordAgeDays = Math.floor(Number(ageRows[0]?.days ?? 0));
+  const passwordAgeDays = Math.floor(Number(ageRows[0]?.age_days ?? 0));
+  const snoozeDays = ageRows[0]?.snooze_days != null
+    ? Math.floor(Number(ageRows[0].snooze_days))
+    : null;
+  // 모달 표시 여부 — 서버에서 미리 결정해서 클라이언트로 전달.
+  const showPasswordModal =
+    passwordAgeDays >= 90 && (snoozeDays === null || snoozeDays >= 30);
 
   return (
     <div className="min-h-screen" style={{ background: "#fafafa" }}>
@@ -121,7 +136,7 @@ export default async function AdminAuthedLayout({
         </div>
       </header>
       {children}
-      <PasswordExpiryModal ageDays={passwordAgeDays} />
+      {showPasswordModal && <PasswordExpiryModal ageDays={passwordAgeDays} />}
     </div>
   );
 }

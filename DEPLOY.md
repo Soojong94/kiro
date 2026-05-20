@@ -183,8 +183,8 @@ sudo systemctl list-timers kiro-*
 ```
 
 스케줄:
-- `kiro-sync-identity.timer` → 매일 **02:15 UTC** (11:15 KST) — IC 그룹/사용자 → schools/students
-- `kiro-ingest.timer` → 매일 **02:30 UTC** (11:30 KST) — S3 CSV → daily_usage + 스냅샷
+- `kiro-sync-identity.timer` → 매일 **15:00 UTC** (00:00 KST, 자정) — IC 그룹/사용자 → schools/students
+- `kiro-ingest.timer` → 매일 **02:05 UTC** (11:05 KST) — S3 CSV → daily_usage + 스냅샷 (Kiro 가 11:00 KST 에 CSV 떨어뜨리니까 5분 여유)
 
 **운영 명령**:
 ```bash

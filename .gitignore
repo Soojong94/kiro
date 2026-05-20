@@ -46,6 +46,9 @@ samples/raw/
 # CSV 원본 아카이브 — 운영 서버에서 365일 보관, 로컬엔 둘 필요 없음
 /data/csv-archive/
 
+# 가이드 PDF — 캡처에 내부 식별자 포함될 수 있어 별도 배포. 로컬에서만 보관/사용.
+/public/guides/*.pdf
+
 # 로그
 *.log
 npm-debug.log*

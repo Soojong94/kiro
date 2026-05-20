@@ -1,9 +1,10 @@
 [Unit]
-Description=Daily Identity Center sync at 02:15 UTC (= 11:15 KST)
-# ingest 보다 15분 먼저 — sync 가 학생 행 채워야 그 학생 사용량을 ingest 가 올바른 학교로 매핑.
+Description=Daily Identity Center sync at 15:00 UTC (= 00:00 KST)
+# 자정에 학생 명단 먼저 정리. 12시간 뒤 ingest 가 새 학생도 매핑 가능.
+# sync 자체는 빠르게 끝남 (IC API 한 번 + DB upsert).
 
 [Timer]
-OnCalendar=*-*-* 02:15:00 UTC
+OnCalendar=*-*-* 15:00:00 UTC
 # 부팅 직후 못 받은 일정이면 한 번 따라잡음
 Persistent=true
 Unit=kiro-sync-identity.service

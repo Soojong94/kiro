@@ -1,10 +1,11 @@
 [Unit]
-Description=Daily Kiro ingest at 02:30 UTC (= 11:30 KST)
-# Kiro 가 02:00 UTC 에 CSV 떨어뜨림. 약간의 여유 두고 02:30 시작.
-# sync-identity-center 가 먼저 02:15 에 끝나있어야 학생 매핑이 최신.
+Description=Daily Kiro ingest at 02:05 UTC (= 11:05 KST)
+# Kiro 가 02:00 UTC (11:00 KST) 에 전날 CSV 떨어뜨림. 5분 여유 후 11:05 KST 에 가져옴.
+# 스냅샷 재계산까지 보통 30초 안에 끝남 → 11:05 시작 → 11:06 즈음 완료.
+# sync-identity-center 는 같은 날 자정 (KST) 에 이미 끝나있어 학생 매핑 최신 상태.
 
 [Timer]
-OnCalendar=*-*-* 02:30:00 UTC
+OnCalendar=*-*-* 02:05:00 UTC
 Persistent=true
 Unit=kiro-ingest.service
 

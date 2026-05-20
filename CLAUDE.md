@@ -11,10 +11,10 @@
 ```
 AWS IAM Identity Center                  Kiro Console
   └─ 그룹/사용자                          └─ user activity report → S3
-        │  매일 02:15 UTC sync                 │  매일 02:00 UTC CSV 생성
+        │  매일 15:00 UTC (00:00 KST) sync                 │  매일 02:00 UTC CSV 생성
         ▼                                       ▼
 schools / students 자동 등록           S3 (raw CSV)
-                                              │  02:30 UTC ingest cron
+                                              │  02:05 UTC (11:05 KST) ingest cron
         ▼                                     ▼
         └────────► PostgreSQL ◄────────────────┘
                       │  ingest 직후 스냅샷 미리 계산
@@ -163,8 +163,8 @@ TZ=Asia/Seoul
 
 ## 인제스트 / 동기화 흐름
 
-1. **sync-identity-center cron (02:15 UTC)** — `connections` 의 IC 설정된 행 순회. AssumeRole 후 IC API 로 그룹/사용자 가져와 schools/students UPSERT. 신규 학생은 랜덤 초기 비번 + `samples/credentials/*.csv`.
-2. **ingest cron (02:30 UTC)** — `connections` 의 S3 설정된 행 순회. AssumeRole 후 S3 의 CSV 다운로드 → `/data/csv-archive/<connection_id>/<date>/` 백업 → parseCsv → `students` 매핑으로 학생의 **실제 school_id** 찾아 daily_usage/model_usage UPSERT → snapshot 재계산.
+1. **sync-identity-center cron (15:00 UTC (00:00 KST))** — `connections` 의 IC 설정된 행 순회. AssumeRole 후 IC API 로 그룹/사용자 가져와 schools/students UPSERT. 신규 학생은 랜덤 초기 비번 + `samples/credentials/*.csv`.
+2. **ingest cron (02:05 UTC (11:05 KST))** — `connections` 의 S3 설정된 행 순회. AssumeRole 후 S3 의 CSV 다운로드 → `/data/csv-archive/<connection_id>/<date>/` 백업 → parseCsv → `students` 매핑으로 학생의 **실제 school_id** 찾아 daily_usage/model_usage UPSERT → snapshot 재계산.
 3. 둘 다 **멱등**. 같은 날짜 재실행 시 INSERT 가 아닌 UPDATE 로 덮어쓰기 (이중 적재 X).
 4. `ingest_runs` 가 'ok' 면 skip — 강제 재인제스트는 해당 행 DELETE 후 재실행.
 

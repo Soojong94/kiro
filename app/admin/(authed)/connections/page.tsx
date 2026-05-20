@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { requireAdmin } from "@/lib/auth";
@@ -6,6 +5,7 @@ import { pool } from "@/lib/db";
 import {
   createConnectionAction,
   deleteConnectionAction,
+  testConnectionAction,
   updateConnectionAction,
 } from "./actions";
 
@@ -57,6 +57,12 @@ export default async function ConnectionsPage({
   const errMsg = errCode ? FORM_ERRORS[errCode] ?? "오류가 발생했습니다." : null;
   const okMsg = okCode ? OK_MSGS[okCode] ?? null : null;
 
+  // 테스트 결과 (testConnectionAction 후 리다이렉트)
+  const testOk = Array.isArray(sp.test_ok) ? sp.test_ok[0] : sp.test_ok;
+  const testSummary = Array.isArray(sp.summary) ? sp.summary[0] : sp.summary;
+  const testError = Array.isArray(sp.test_error) ? sp.test_error[0] : sp.test_error;
+  const testErrId = Array.isArray(sp.test_id) ? sp.test_id[0] : sp.test_id;
+
   const { rows } = await pool.query<{
     id: string;
     name: string;
@@ -102,12 +108,15 @@ export default async function ConnectionsPage({
             AWS 계정 단위 인제스트 출처. 한 connection 이 여러 학교(IC 그룹)를 호스팅합니다.
           </p>
         </div>
-        <Link
-          href="/admin/connections/guide"
+        <a
+          href="/guides/aws-connection-guide.pdf"
+          target="_blank"
+          rel="noopener noreferrer"
+          download
           className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md bg-white ring-1 ring-[#d5dbdb] text-[12.5px] font-semibold text-[#414d5c] hover:bg-[#f2f3f3] cursor-pointer"
         >
-          📖 가이드
-        </Link>
+          📖 가이드 PDF ↓
+        </a>
       </header>
 
       <div className="mb-6 rounded-md bg-[#f2f8fd] ring-1 ring-[#cce4f5] px-4 py-3 text-[12.5px] text-[#033160]">
@@ -126,6 +135,30 @@ export default async function ConnectionsPage({
       {errMsg && (
         <div className="mb-4 rounded-md bg-[#fdf2f0] ring-1 ring-[#f1c0bf] px-3 py-2 text-[12.5px] text-[#7c2c2c]">
           {errMsg}
+        </div>
+      )}
+      {testOk && (
+        <div className="mb-4 rounded-md bg-[#f1f8f5] ring-1 ring-[#9bd4b7] px-4 py-3 text-[12.5px] text-[#1d6638]">
+          <div className="font-bold text-[13.5px]">
+            ✅ <span className="font-mono">{testOk}</span> 연결 검증 통과
+          </div>
+          {testSummary && (
+            <div className="mt-1 text-[12px] text-[#1d6638]">{testSummary}</div>
+          )}
+          <div className="mt-2 text-[12px] text-[#1d6638]">
+            <strong>00:00 KST 자정에 자동 sync</strong>, <strong>11:05 KST 에 사용량 ingest</strong> 됩니다.
+          </div>
+        </div>
+      )}
+      {testError && (
+        <div className="mb-4 rounded-md bg-[#fdf2f0] ring-1 ring-[#f1c0bf] px-4 py-3 text-[12.5px] text-[#7c2c2c]">
+          <div className="font-bold text-[13.5px]">
+            ❌ <span className="font-mono">{testErrId ?? ""}</span> 연결 검증 실패
+          </div>
+          <div className="mt-1 text-[12px] font-mono break-all">{testError}</div>
+          <div className="mt-2 text-[12px]">
+            가이드 PDF §1 (IAM 권한) 또는 §5 (문제 해결) 참고.
+          </div>
         </div>
       )}
 
@@ -249,8 +282,8 @@ export default async function ConnectionsPage({
                 <FormField label="S3 리전">
                   <Input name="s3_region" defaultValue={c.s3Region} />
                 </FormField>
-                <div className="sm:col-span-2 flex justify-between items-center pt-2">
-                  {/* 같은 form 안에서 formAction 으로 삭제 액션 분기 — form 중첩 금지 */}
+                <div className="sm:col-span-2 flex justify-between items-center pt-2 flex-wrap gap-2">
+                  {/* 같은 form 안에서 formAction 으로 액션 분기 — form 중첩 금지 */}
                   <ConfirmSubmitButton
                     formAction={deleteConnectionAction}
                     message={`'${c.id}' connection 을 삭제합니다. 진행할까요? (속한 학교가 있으면 차단됨)`}
@@ -258,12 +291,22 @@ export default async function ConnectionsPage({
                   >
                     삭제
                   </ConfirmSubmitButton>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 rounded-md bg-[#0972d3] text-white text-[13px] font-semibold hover:bg-[#033160] cursor-pointer"
-                  >
-                    저장
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="submit"
+                      formAction={testConnectionAction}
+                      className="px-3.5 py-2 rounded-md bg-white ring-1 ring-[#d5dbdb] text-[12.5px] font-semibold text-[#414d5c] hover:bg-[#f2f3f3] cursor-pointer"
+                      title="STS / IC / S3 접근 검증 — DB 변경 없음"
+                    >
+                      📡 연결 테스트
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 rounded-md bg-[#0972d3] text-white text-[13px] font-semibold hover:bg-[#033160] cursor-pointer"
+                    >
+                      저장
+                    </button>
+                  </div>
                 </div>
               </form>
             </div>

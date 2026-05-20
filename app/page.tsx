@@ -170,7 +170,7 @@ export default async function PublicDashboard({
             </h1>
             <p className="mt-5 text-[15px] sm:text-[16px] text-[#414d5c]">
               <strong className="text-[#16191f]">{fmtKstDate(baseDate)}</strong> 기준
-              <span className="ml-1.5 text-[#5f6b7a]">· 한국시간 매일 오전 11시 (UTC 02:00) 갱신</span>
+              <span className="ml-1.5 text-[#5f6b7a]">· 한국시간 매일 오전 11:05 갱신</span>
             </p>
           </div>
         </header>
