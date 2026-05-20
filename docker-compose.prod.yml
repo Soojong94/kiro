@@ -52,6 +52,8 @@ services:
       # sync-identity-center 가 신규 학생 초기 비번을 떨구는 위치.
       # 컨테이너 재빌드 시 날아가지 않도록 호스트에 영구 보관 (어드민 백업본).
       - ./samples/credentials:/app/samples/credentials
+      # 셋업 가이드 PDF 영구 배포 (어드민 콘솔 다운로드 버튼).
+      - ./public/guides:/app/public/guides:ro
 
 volumes:
   kiro_pg_data:
