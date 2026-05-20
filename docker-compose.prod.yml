@@ -49,6 +49,9 @@ services:
       # 1년 보관 (cleanup-archive.sh 가 365일 경과 파일 정리).
       # 데이터 손실 / 학생 데이터 복원 / 감사 용도.
       - ./data/csv-archive:/data/csv-archive
+      # sync-identity-center 가 신규 학생 초기 비번을 떨구는 위치.
+      # 컨테이너 재빌드 시 날아가지 않도록 호스트에 영구 보관 (어드민 백업본).
+      - ./samples/credentials:/app/samples/credentials
 
 volumes:
   kiro_pg_data:
