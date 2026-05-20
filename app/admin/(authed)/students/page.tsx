@@ -157,11 +157,52 @@ export default async function StudentsPage({
 
       <div className="mb-6 rounded-md bg-[#f2f8fd] ring-1 ring-[#cce4f5] px-4 py-3 text-[12.5px] text-[#033160]">
         <strong>학생 계정은 AWS IAM Identity Center 에서 자동 등록됩니다.</strong>{" "}
-        IC 그룹에 사용자를 추가하면 다음 sync (매일 02:15 UTC) 가 학생 행을 만듭니다.
+        IC 그룹에 사용자를 추가하면 다음 sync (매일 00:00 KST) 가 학생 행을 만듭니다.
         <br />
         아래 <em>수동 추가</em> 폼은 <strong>Kiro 를 사용하지 않는 뷰어 계정</strong>
         (학교 운영자 등) 발급 전용입니다. 이 계정은 랭킹에 노출되지 않습니다 (사용량 데이터 없음).
       </div>
+
+      {/* 초기 비밀번호 일괄 다운로드 (슈퍼 어드민 전용) */}
+      {admin.role === "super" && (
+        <details className="mb-6 rounded-lg bg-white ring-1 ring-[#eaeded] shadow-[0_1px_2px_rgba(0,28,36,0.05)]">
+          <summary className="cursor-pointer px-5 py-3 text-[13.5px] font-semibold text-[#16191f] hover:bg-[#fafafa] select-none rounded-lg">
+            🔑 초기 비밀번호 일괄 다운로드
+          </summary>
+          <div className="px-5 pb-5 pt-2 space-y-3">
+            <p className="text-[12.5px] text-[#5f6b7a] leading-relaxed">
+              sync 가 발급한 학생 초기 비번을 학교별로 CSV 추출 (Excel 호환 UTF-8 BOM).
+              컬럼: 대학교 / 이름 / 아이디 / 이메일 / 초기 비밀번호.
+              <br />
+              <strong>초기 비번은 학생이 바꿔도 그대로 표시됩니다</strong> — 변경 후 비번은 학생 본인이 비번 찾기로 관리.
+              <br />
+              <strong className="text-[#7c2c2c]">⚠ 민감 정보 — 다운로드 후 안전한 채널로 전달, 본인 디스크에서 즉시 삭제.</strong>
+            </p>
+            <form
+              method="get"
+              action="/admin/students/credentials"
+              className="flex items-center gap-2 flex-wrap text-[12.5px]"
+            >
+              <select
+                name="school_id"
+                defaultValue="all"
+                className="px-2.5 py-1.5 rounded-md ring-1 ring-[#d5dbdb] bg-white"
+              >
+                <option value="all">전체 학교</option>
+                {schools.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+              <button
+                type="submit"
+                className="px-3.5 py-2 rounded-md bg-[#0972d3] text-white font-semibold hover:bg-[#033160] cursor-pointer"
+              >
+                📥 CSV 다운로드
+              </button>
+            </form>
+          </div>
+        </details>
+      )}
 
       {okMsg && (
         <div className="mb-4 rounded-md bg-[#f1f8f5] ring-1 ring-[#9bd4b7] px-3 py-2 text-[12.5px] text-[#1d6638]">

@@ -202,17 +202,19 @@ async function syncConnection(conn: Connection, allNewCreds: NewCred[]): Promise
     }
 
     try {
-      // ON CONFLICT DO NOTHING — 기존 학생 행은 IC 가 갱신돼도 절대 건드리지 않음.
-      // (실명/이메일/아이디/비번 모두 유지. 어드민이 일부러 바꿨거나 학생이 자기 비번 바꾼 상태도 유지)
-      // 새 학생만 INSERT. RETURNING 으로 실제 INSERT 된 경우에만 신규 자격증명에 추가.
+      // ON CONFLICT DO NOTHING — 기존 학생은 절대 건드리지 않음.
+      // 신규 학생만 INSERT 되면서 initial_password (평문) 도 같이 저장 →
+      // 어드민이 /admin/students 에서 학교별 일괄 다운로드 가능.
+      // initial_password 는 한 번 채워지면 영구 유지 (학생이 비번 바꿔도 안 건드림) —
+      // 어드민이 "최초 발급 비번이 뭐였더라" 다시 확인할 수 있게.
       const inserted = await pool.query<{ user_id: string }>(
         `INSERT INTO students
            (school_id, user_id, real_name, cohort, username, email,
-            password_hash, must_change_password)
-         VALUES ($1, $2, $3, NULL, $4, $5, $6, true)
+            password_hash, must_change_password, initial_password)
+         VALUES ($1, $2, $3, NULL, $4, $5, $6, true, $7)
          ON CONFLICT (school_id, user_id) DO NOTHING
          RETURNING user_id`,
-        [groupName, uid, realName, username, email, passwordHash],
+        [groupName, uid, realName, username, email, passwordHash, plainPassword],
       );
       const wasNew = inserted.rowCount === 1;
       if (wasNew && plainPassword && username && email) {

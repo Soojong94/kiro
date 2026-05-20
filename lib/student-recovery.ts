@@ -20,6 +20,9 @@ function appBaseUrl(): string {
 // ─── 아이디 찾기 ──────────────────────────────────────────────────
 // 이메일로 학생 조회 → 있으면 아이디 메일 발송. 없으면 조용히 무시.
 // 호출부는 항상 "메일 발송됐다고 가정" 메시지만 노출.
+//
+// 게이트: must_change_password = false (= 초기 셋업 완료한 학생만).
+// 셋업 전 학생은 어드민이 발급한 CSV 로 username 받아야 함.
 export async function requestUsernameRecovery(email: string): Promise<void> {
   const normalized = email.trim().toLowerCase();
   if (!normalized) return;
@@ -29,12 +32,14 @@ export async function requestUsernameRecovery(email: string): Promise<void> {
     real_name: string;
   }>(
     `SELECT username, real_name FROM students
-      WHERE lower(email) = $1 AND username IS NOT NULL
+      WHERE lower(email) = $1
+        AND username IS NOT NULL
+        AND must_change_password = false
       LIMIT 1`,
     [normalized],
   );
   const found = rows[0];
-  if (!found) return; // 조용히 종료 — 존재 여부 노출 금지
+  if (!found) return; // 조용히 종료 — 존재 여부 + 셋업 상태 노출 금지
 
   await sendMail({
     to: email,
@@ -47,6 +52,9 @@ export async function requestUsernameRecovery(email: string): Promise<void> {
 // ─── 비밀번호 재설정 토큰 발급 ────────────────────────────────────
 // 이메일로 학생 조회 → 있으면 토큰 생성 + 재설정 링크 메일.
 // 24시간 안에 같은 학생에 대해 너무 많이 발급되면 차단 (간이 rate limit).
+//
+// 게이트: must_change_password = false (= 초기 셋업 완료한 학생만).
+// 셋업 전 학생이 비번 잊으면 어드민에게 초기 비번 다시 받아야 함 (CSV 다운로드).
 export async function requestPasswordReset(email: string): Promise<void> {
   const normalized = email.trim().toLowerCase();
   if (!normalized) return;
@@ -57,7 +65,9 @@ export async function requestPasswordReset(email: string): Promise<void> {
     real_name: string;
   }>(
     `SELECT school_id, user_id, real_name FROM students
-      WHERE lower(email) = $1 AND username IS NOT NULL
+      WHERE lower(email) = $1
+        AND username IS NOT NULL
+        AND must_change_password = false
       LIMIT 1`,
     [normalized],
   );

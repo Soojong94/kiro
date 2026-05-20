@@ -15,7 +15,8 @@
     "check-identity-center": "tsx --env-file=.env.local scripts/check-identity-center.ts",
     "sync-identity-center": "tsx --env-file=.env.local scripts/sync-identity-center.ts",
     "test-ingest-local": "tsx --env-file=.env.local scripts/test-ingest-local.ts",
-    "check-smtp": "tsx --env-file=.env.local scripts/check-smtp.ts"
+    "check-smtp": "tsx --env-file=.env.local scripts/check-smtp.ts",
+    "backfill-initial-passwords": "tsx --env-file=.env.local scripts/backfill-initial-passwords.ts"
   },
   "dependencies": {
     "@aws-sdk/client-identitystore": "^3.1049.0",
