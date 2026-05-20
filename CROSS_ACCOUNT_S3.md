@@ -99,7 +99,7 @@ IAM → Roles → Create role → **Custom trust policy**:
       "Action": "sts:AssumeRole",
       "Condition": {
         "StringEquals": {
-          "sts:ExternalId": "***REMOVED-BUCKET***-shared-secret"
+          "sts:ExternalId": "<사전 합의한 외부 ID>"
         }
       }
     }

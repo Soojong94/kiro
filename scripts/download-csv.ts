@@ -16,8 +16,8 @@ import {
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-const BUCKET = process.env.KIRO_BUCKET ?? "***REMOVED-BUCKET***";
-const PREFIX_BASE = process.env.KIRO_PREFIX ?? "***REMOVED-PREFIX***/";
+const BUCKET = process.env.KIRO_BUCKET ?? "";
+const PREFIX_BASE = process.env.KIRO_PREFIX ?? "";
 const ACCOUNT_ID = process.env.KIRO_ACCOUNT_ID ?? "";
 
 function getArg(name: string): string | undefined {
@@ -67,8 +67,10 @@ function previewFile(filename: string, content: string): void {
 }
 
 async function main() {
-  if (!ACCOUNT_ID) {
-    console.error("[download-csv] KIRO_ACCOUNT_ID 환경변수 필요 (AWS 계정 12자리 ID)");
+  if (!ACCOUNT_ID || !BUCKET) {
+    console.error(
+      "[download-csv] 환경변수 필요: KIRO_ACCOUNT_ID (12자리), KIRO_BUCKET, (선택) KIRO_PREFIX",
+    );
     process.exit(1);
   }
   const dateStr = getArg("date") ?? yesterdayStr();

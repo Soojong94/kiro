@@ -68,7 +68,7 @@ export default async function ConnectionGuidePage() {
           Kiro 가 user activity report CSV 를 떨어뜨리는 버킷 이름. 학교가 Kiro Console 에서 지정한 그 값.
         </Field>
         <Field name="S3 prefix">
-          버킷 내 경로 접두사 (옵션). 학교가 prefix 를 지정했다면 그 값. 예: <Code>***REMOVED-PREFIX***</Code>. 없으면 비움.
+          버킷 내 경로 접두사 (옵션). 학교가 prefix 를 지정했다면 그 값. 예: <Code>kiro-reports</Code>. 없으면 비움.
         </Field>
         <Field name="S3 리전">
           S3 버킷의 리전. 보통 IC 와 같은 us-east-1 이지만 다를 수 있으니 학교에 확인.

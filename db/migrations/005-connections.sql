@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS connections (
   id              text         PRIMARY KEY,        -- 예: "tbit-main"
   name            text         NOT NULL,           -- 표시명. 예: "TBIT 메인 AWS"
   aws_account_id  text,                            -- 12자리. cross-account 시 검증 용도
-  ic_instance_id  text,                            -- Identity Center 인스턴스 ID (예: ***REMOVED-IC-INSTANCE***)
+  ic_instance_id  text,                            -- Identity Center 인스턴스 ID (예: d-XXXXXXXXXX)
   ic_region       text         NOT NULL DEFAULT 'us-east-1',
   s3_bucket       text,
   s3_prefix       text,
@@ -27,14 +27,16 @@ ALTER TABLE schools
 CREATE INDEX IF NOT EXISTS idx_schools_connection ON schools(connection_id);
 
 -- 기존 데이터 마이그레이션:
--- TBIT 학교 행의 S3/AWS 정보를 connection 으로 이동, 모든 기존 학교가 이 connection 가리킴
+-- 메인 connection 스텁만 생성 — 실제 값(IC 인스턴스 ID / S3 / role_arn) 은 어드민이
+-- /admin/connections 편집 화면에서 채움. 자격증명/식별자 정보를 SQL 에 박지 않기 위함.
+-- 또한 기존 schools 의 S3/AWS 정보가 있으면 그것도 함께 복사 (legacy 호환).
 INSERT INTO connections
   (id, name, aws_account_id, ic_instance_id, ic_region, s3_bucket, s3_prefix, s3_region, role_arn)
 SELECT
   'tbit-main',
   'TBIT 메인 AWS',
   aws_account_id,
-  '***REMOVED-IC-INSTANCE***',           -- 알려진 tbit-kiro-edu IC 인스턴스 ID
+  NULL,                    -- IC 인스턴스 ID 는 어드민 UI 에서 채울 것
   'us-east-1',
   s3_bucket,
   s3_prefix,
@@ -42,6 +44,11 @@ SELECT
   role_arn
 FROM schools
 WHERE id = 'tbit'
+ON CONFLICT (id) DO NOTHING;
+
+-- schools 에 'tbit' 행이 없는 경우 대비 — 빈 stub 만들고 어드민이 모두 채우게.
+INSERT INTO connections (id, name)
+VALUES ('tbit-main', 'TBIT 메인 AWS')
 ON CONFLICT (id) DO NOTHING;
 
 -- 기존 모든 학교를 tbit-main connection 으로 연결 (한 IC 가 모두 호스팅 중인 현 상태 반영)

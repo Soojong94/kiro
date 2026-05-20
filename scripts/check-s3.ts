@@ -1,17 +1,35 @@
 // S3 접근 검증용 일회성 스크립트.
-// .env.local 의 AWS 자격증명으로 ***REMOVED-BUCKET***/<prefix>/ 아래 객체 리스트.
+// .env.local 의 AWS 자격증명으로 <bucket>/<prefix>/ 아래 객체 리스트.
 //
-// 실행: npm run check-s3
+// 실행:
+//   KIRO_BUCKET=<버킷명> KIRO_PREFIX=<prefix/> npm run check-s3
+//   (env 미지정 시 connections 테이블의 첫 행 자동 사용)
 
 import {
   HeadBucketCommand,
   ListObjectsV2Command,
   S3Client,
 } from "@aws-sdk/client-s3";
+import { pool } from "@/lib/db";
 
-const BUCKET = "***REMOVED-BUCKET***";
-const PREFIX = "***REMOVED-PREFIX***/";
+let BUCKET = process.env.KIRO_BUCKET ?? "";
+let PREFIX = process.env.KIRO_PREFIX ?? "";
 const DEFAULT_REGION = process.env.AWS_REGION ?? "ap-northeast-2";
+
+async function loadFromConnections(): Promise<void> {
+  if (BUCKET) return;
+  const { rows } = await pool.query<{ s3_bucket: string | null; s3_prefix: string | null }>(
+    `SELECT s3_bucket, s3_prefix FROM connections
+      WHERE s3_bucket IS NOT NULL ORDER BY created_at LIMIT 1`,
+  );
+  const r = rows[0];
+  if (!r?.s3_bucket) {
+    console.error("[check-s3] KIRO_BUCKET env 도 없고 connections 에도 S3 설정된 행이 없음");
+    process.exit(1);
+  }
+  BUCKET = r.s3_bucket;
+  PREFIX = r.s3_prefix ? `${r.s3_prefix}/` : "";
+}
 
 async function resolveBucketRegion(): Promise<string> {
   // HeadBucket 은 리전 미스매치여도 응답에 x-amz-bucket-region 반환.
@@ -31,6 +49,7 @@ async function resolveBucketRegion(): Promise<string> {
 }
 
 async function main() {
+  await loadFromConnections();
   console.log(`[check-s3] 버킷 ${BUCKET} 의 실제 리전 탐색 중...`);
   const region = await resolveBucketRegion();
   console.log(`[check-s3] 리전 확정: ${region}`);
@@ -59,8 +78,11 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error("[check-s3] 실패:", err.name, "-", err.message);
-  if (err.$metadata) console.error("  metadata:", err.$metadata);
-  process.exit(1);
-});
+main()
+  .then(() => pool.end())
+  .catch(async (err) => {
+    console.error("[check-s3] 실패:", err.name, "-", err.message);
+    if (err.$metadata) console.error("  metadata:", err.$metadata);
+    await pool.end().catch(() => {});
+    process.exit(1);
+  });
