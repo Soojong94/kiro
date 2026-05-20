@@ -1,0 +1,12 @@
+[Unit]
+Description=Kiro daily — sync + ingest + db backup
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/home/ubuntu/kiro
+ExecStart=/home/ubuntu/kiro/ops/daily-cron.sh
+StandardOutput=journal
+StandardError=journal
