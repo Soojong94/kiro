@@ -46,9 +46,9 @@ export default async function LeavePage({
         <div className="rounded-2xl border border-[#fad1d1] bg-[#fdf2f2] p-4 mb-4 text-[12.5px] text-[#7c2c2c] leading-relaxed">
           <div className="font-semibold mb-1">탈퇴 안내</div>
           <ul className="list-disc pl-5 space-y-0.5">
-            <li>대시보드에서 본인 이름이 더 이상 노출되지 않습니다.</li>
-            <li>학교 단위로 누적된 사용량 통계는 그대로 보존됩니다.</li>
-            <li>다시 가입하려면 학교 관리자에게 복구 요청을 해야 합니다.</li>
+            <li>로그인 / 비밀번호 찾기 · 재설정이 차단됩니다.</li>
+            <li>대시보드 랭킹과 사용량 데이터는 그대로 노출됩니다 (마스킹된 이름).</li>
+            <li>다시 로그인하려면 학교 관리자에게 복구 요청을 해야 합니다.</li>
           </ul>
         </div>
 

@@ -25,13 +25,27 @@ export async function NavBar({ hideAuth = false }: { hideAuth?: boolean } = {}) 
           {!hideAuth && loggedIn && (
             <Link
               href="/"
-              className="px-3 py-1.5 rounded-md bg-white/10 text-white text-[12px] font-semibold hover:bg-white/20 transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white/15 ring-1 ring-white/20 text-white text-[13px] font-semibold hover:bg-white/25 hover:ring-white/30 transition-all cursor-pointer"
             >
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M3 12L12 3l9 9" />
+                <path d="M5 10v10h14V10" />
+              </svg>
               홈
             </Link>
           )}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           {!hideAuth && loggedIn && (
             <>
               <span className="hidden sm:inline text-[12.5px] text-[#d1d5db]">
@@ -40,14 +54,14 @@ export async function NavBar({ hideAuth = false }: { hideAuth?: boolean } = {}) 
               <form action={studentLogoutAction}>
                 <button
                   type="submit"
-                  className="px-3 py-1.5 rounded-md bg-white/10 text-white text-[12px] font-semibold hover:bg-white/20 transition-colors cursor-pointer"
+                  className="px-3 py-2 rounded-lg bg-white/15 ring-1 ring-white/20 text-white text-[13px] font-semibold hover:bg-white/25 hover:ring-white/30 transition-all cursor-pointer"
                 >
                   로그아웃
                 </button>
               </form>
               <Link
                 href="/leave"
-                className="text-[11px] text-white/35 hover:text-white/70 transition-colors"
+                className="px-3 py-2 rounded-lg ring-1 ring-white/15 text-[12px] font-medium text-white/70 hover:text-white hover:ring-white/30 hover:bg-white/5 transition-all cursor-pointer"
               >
                 탈퇴
               </Link>

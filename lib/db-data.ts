@@ -39,7 +39,7 @@ export async function loadStudents(): Promise<Student[]> {
     real_name: string;
     cohort: string | null;
   }>(
-    `SELECT school_id, user_id, real_name, cohort FROM students WHERE deactivated_at IS NULL`,
+    `SELECT school_id, user_id, real_name, cohort FROM students`,
   );
   return rows.map((r) => ({
     userId: r.user_id,
