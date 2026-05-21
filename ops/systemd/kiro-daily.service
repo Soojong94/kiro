@@ -1,5 +1,5 @@
 [Unit]
-Description=Kiro daily — sync + ingest
+Description=Kiro daily — sync + ingest + db backup
 After=docker.service
 Requires=docker.service
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Kiro 일일 cron — sync → ingest. 실패 시 알림, 성공 시도 알림.
-# DB 백업은 별도 운영 안 함 (EBS 스냅샷 / 수동 pg_dump 정책에 맡김).
+# Kiro 일일 cron — sync → ingest → db-backup. 실패 시 알림, 성공 시도 알림.
+# DB 백업은 Kiro raw CSV 와 같은 버킷의 db-backups/ prefix (30일 라이프사이클).
 set -euo pipefail
 set -o errtrace
 
@@ -56,6 +56,14 @@ STEP="ingest"
 echo "[daily] [$(date -u +%FT%H%M%SZ)] $STEP 시작"
 docker compose -f docker-compose.prod.yml exec -T next npm run ingest
 
+STEP="db-backup"
+echo "[daily] [$(date -u +%FT%H%M%SZ)] $STEP 시작"
+TS=$(date -u +%FT%H%M%SZ)
+BACKUP_FILE="kiro-db-$TS.sql.gz"
+docker exec kiro-pg pg_dump -U kiro kiro | gzip > "/tmp/$BACKUP_FILE"
+aws s3 cp "/tmp/$BACKUP_FILE" "s3://kiro-tbit/db-backups/"
+rm "/tmp/$BACKUP_FILE"
+
 NOW=$(date -u +%FT%H%M%SZ)
 echo "[daily] [$NOW] ✅ 완료"
 
@@ -69,6 +77,7 @@ send_mail \
 단계별 정상 완료:
   1. sync-identity-center
   2. ingest
+  3. db-backup → s3://kiro-tbit/db-backups/$BACKUP_FILE
 
 상세 로그:
   journalctl -u kiro-daily.service -n 100 --no-pager" || true
