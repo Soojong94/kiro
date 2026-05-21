@@ -12,5 +12,13 @@ import { getStudentSession } from "@/lib/student-auth";
 export async function GET(request: Request) {
   const session = await getStudentSession();
   await session.destroy();
-  return NextResponse.redirect(new URL("/login?deactivated=1", request.url));
+
+  // Docker 안에서 request.url 이 0.0.0.0:3000 으로 잡히는 케이스 회피.
+  // 실제 클라이언트가 본 host (nginx 가 넘긴 Host 헤더) 로 absolute URL 만듦.
+  const host = request.headers.get("host") ?? "localhost:3000";
+  const proto =
+    request.headers.get("x-forwarded-proto") ??
+    (host.startsWith("localhost") || host.startsWith("127.0.0.1") ? "http" : "https");
+
+  return NextResponse.redirect(`${proto}://${host}/login?deactivated=1`);
 }
