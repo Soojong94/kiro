@@ -30,7 +30,7 @@ export async function leaveAction(formData: FormData): Promise<void> {
     redirect("/leave?error=wrong");
   }
 
-  // 세션 파기 — 다음 페이지 진입 시 자동 /login 으로 튕김.
-  session.destroy();
+  // 세션 파기 — destroy 는 async 라 반드시 await (안 하면 쿠키 제거가 redirect 보다 늦음).
+  await session.destroy();
   redirect("/login?left=1");
 }

@@ -65,7 +65,7 @@ export async function loginAction(formData: FormData): Promise<void> {
 export async function logoutAction(): Promise<void> {
   const session = await getSession();
   const username = session.username;
-  session.destroy();
+  await session.destroy();
   if (username) {
     await recordAudit(username, "admin.logout", null, null);
   }

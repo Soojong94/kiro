@@ -67,6 +67,6 @@ export async function studentLoginAction(formData: FormData): Promise<void> {
 
 export async function studentLogoutAction(): Promise<void> {
   const session = await getStudentSession();
-  session.destroy();
+  await session.destroy();
   redirect("/login");
 }
