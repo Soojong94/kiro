@@ -63,7 +63,9 @@ export async function requireActiveStudent() {
     [session.schoolId, session.userId],
   );
   if (rows[0]?.deactivated) {
-    redirect("/login?deactivated=1");
+    // route handler 거쳐서 쿠키 destroy 후 /login?deactivated=1 으로 →
+    // 그러지 않으면 /login 의 session redirect 로 무한 루프.
+    redirect("/logout-deactivated");
   }
   return session;
 }
