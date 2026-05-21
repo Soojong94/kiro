@@ -11,19 +11,20 @@ send_mail() {
   local subject="$1"
   local body="$2"
   docker compose -f /home/ubuntu/kiro/docker-compose.prod.yml exec -T next node -e "
-    const nm = require('nodemailer');
-    const t = nm.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT||587),
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+    const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses');
+    const client = new SESClient({
+      region: process.env.SES_REGION || process.env.AWS_REGION || 'us-east-1',
     });
-    t.sendMail({
-      from: process.env.EMAIL_FROM,
-      to: '$EMAIL',
-      subject: process.argv[1],
-      text: process.argv[2]
-    }).then(()=>console.log('mail sent'))
-      .catch(e=>console.error('mail fail:', e.message));
+    client.send(new SendEmailCommand({
+      Source: process.env.EMAIL_FROM,
+      Destination: { ToAddresses: ['$EMAIL'] },
+      Message: {
+        Subject: { Data: process.argv[1], Charset: 'UTF-8' },
+        Body: { Text: { Data: process.argv[2], Charset: 'UTF-8' } },
+      },
+    }))
+    .then(()=>console.log('mail sent'))
+    .catch(e=>console.error('mail fail:', e.message));
   " "$subject" "$body" 2>&1 || echo "[$(date)] 메일 발송 실패"
 }
 

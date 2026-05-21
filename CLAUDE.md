@@ -65,7 +65,7 @@ kiro/
 │   ├── auth.ts                iron-session + Argon2id (어드민)
 │   ├── student-auth.ts        학생 세션 + requireActiveStudent / deactivateStudent
 │   ├── student-recovery.ts    비번 재설정 토큰 + deactivated 가드
-│   ├── email.ts               Gmail SMTP (→ AWS SES 마이그레이션 예정)
+│   ├── email.ts               AWS SES (us-east-1)
 │   ├── mask.ts                학생명 마스킹
 │   └── types.ts               CSV ↔ TS 타입
 ├── ingest/
@@ -79,7 +79,7 @@ kiro/
 │   ├── reset-initial-passwords.ts     일회성: TBIT 외 학교 학생 비번 일괄 재발급
 │   ├── backfill-initial-passwords.ts  일회성: 옛 sync CSV 로부터 initial_password 백필
 │   ├── check-s3.ts                    S3 진단
-│   ├── check-smtp.ts                  SMTP 진단
+│   ├── check-ses.ts                   SES 권한/region 진단
 │   ├── check-identity-center.ts       IC 인스턴스 검색
 │   ├── download-csv.ts                CSV 포맷 확인
 │   └── test-ingest-local.ts           로컬 인제스트 검증
@@ -137,7 +137,7 @@ docker exec kiro-next npm run ingest -- --date 2026-05-XX
 
 # 진단
 docker exec kiro-next npm run check-s3              # S3 접근 확인
-docker exec kiro-next npm run check-smtp            # Gmail SMTP 확인
+docker exec kiro-next npm run check-ses             # SES 권한/region 확인
 docker exec kiro-next npm run check-identity-center # IC 인스턴스 조회
 ```
 
@@ -151,7 +151,8 @@ DB_PASSWORD=...                                         # 서버만 (compose 가
 AWS_REGION=ap-northeast-2                               # base region (실제 ingest 는 connections.s3_region 사용)
 SESSION_COOKIE_PASSWORD=<32+ chars random>
 ADMIN_BOOTSTRAP_PASSWORD=<초기 어드민 비번, 최초 1회만>
-SMTP_HOST/PORT/USER/PASS/EMAIL_FROM                     # 학생 이메일 + cron 알림 — Gmail
+EMAIL_FROM                                              # 발신 주소 (예: "Kiro <kiro@tbit.co.kr>")
+SES_REGION=us-east-1                                    # SES 도메인 verify 한 region
 APP_BASE_URL=https://kiro.tbit.co.kr
 TZ=Asia/Seoul
 
@@ -184,7 +185,7 @@ TZ=Asia/Seoul
 1. **sync-identity-center** — `connections` 의 IC 설정된 행 순회. (필요 시 STS AssumeRole 후) IC API 로 그룹/사용자 가져와 schools/students UPSERT. 신규 학생만 `initial_password` 컬럼 + `samples/credentials/*.csv` 동시 저장. `ON CONFLICT DO NOTHING` 이라 기존 학생/탈퇴 학생 안 건드림.
 2. **ingest** — `connections` 의 S3 설정된 행 순회. AssumeRole 후 S3 CSV 다운로드 → `/data/csv-archive/<connection_id>/<date>/` 백업 → parseCsv → `students` 매핑으로 학생의 **실제 school_id** 찾아 daily_usage / model_usage UPSERT → snapshot 재계산.
 3. **db-backup** — `pg_dump | gzip` → `s3://kiro-tbit/db-backups/kiro-db-<ts>.sql.gz`. 30일 라이프사이클로 자동 만료.
-4. 성공/실패 메일 알림 (Gmail SMTP, 수신자: `sujjong456@gmail.com`).
+4. 성공/실패 메일 알림 (AWS SES, 수신자: `sujjong456@gmail.com`).
 
 **멱등성 주의**: ingest 는 `ingest_runs.status='ok'` 마킹 보고 skip 함. 11~12시 KST 사이에 수동 ingest 돌리면 Kiro 가 아직 파일 안 떨군 상태에서 빈 처리 + ok 마킹 → 정작 12시 자동 cron 이 skip 됨. **수동 ingest 는 12:00 KST 이후에만**. 사고 시: `DELETE FROM ingest_runs WHERE date=...` 후 재실행.
 

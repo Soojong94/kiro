@@ -193,7 +193,7 @@ Kiro CSV는 **매일 02:00 UTC에 정확히 1회만** 생성. v1.0 운영은 단
 - ingest 의 'no_data' 마킹 — rows=0 시 다음 cron 자연 재시도 (현재는 운영 규칙으로 회피).
 
 **v2 (중기)**
-- AWS SES 마이그레이션 (현재 Gmail SMTP).
+- ~~AWS SES 마이그레이션~~ **[✓ v1.0]** — us-east-1 에서 도메인 verify, EC2 instance profile 권한.
 - 어드민 MFA.
 - 학생별 한도 상향 워크플로 — 어드민이 `overage_cap` 조정 → Kiro 콘솔 자동 적용 (Kiro API 노출 시점에).
 - 슬랙/이메일 알림 (cron 실패는 이미 메일 알림 있음, 추가로 한도 80% 도달 등).

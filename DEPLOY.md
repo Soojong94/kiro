@@ -71,7 +71,7 @@ nano .env
 | `ADMIN_BOOTSTRAP_PASSWORD` | 최초 어드민 비번 (생성 후 라인 삭제) |
 | `SESSION_COOKIE_PASSWORD` | `openssl rand -base64 32` |
 | `APP_BASE_URL` | `https://kiro.tbit.co.kr` |
-| `SMTP_HOST/PORT/USER/PASS` | Gmail SMTP + 앱 비밀번호 |
+| `SES_REGION` | SES 도메인 verify 한 region (현재 `us-east-1`) |
 | `EMAIL_FROM` | `"Kiro 통합 랭킹 <noreply@example.com>"` |
 | `AWS_REGION` | `ap-northeast-2` |
 | `TZ` | `Asia/Seoul` |
@@ -234,6 +234,6 @@ journalctl -u kiro-daily.service -n 100 --no-pager
 ## 다음 단계 (v2 후보)
 
 - **모니터링** — UptimeRobot 등으로 `https://kiro.tbit.co.kr/healthz` 폴링
-- **AWS SES 마이그레이션** — Gmail SMTP → SES 도메인 verify 후 `lib/email.ts` 교체
+- **모니터링** — UptimeRobot 등 외부 폴링
 - **어드민 MFA**
 - **학생 알림** (랭킹 변동 메일)

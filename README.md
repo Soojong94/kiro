@@ -45,7 +45,7 @@ AWS IAM Identity Center               Kiro Console
 ```bash
 # 1. 환경변수 준비
 cp .env.example .env.local
-# .env.local 의 SESSION_COOKIE_PASSWORD, ADMIN_BOOTSTRAP_PASSWORD, SMTP_* 등 채우기
+# .env.local 의 SESSION_COOKIE_PASSWORD, ADMIN_BOOTSTRAP_PASSWORD, AWS_*, EMAIL_FROM 등 채우기
 
 # 2. 컨테이너 기동
 docker compose up -d
@@ -74,7 +74,7 @@ docker exec kiro-next npm run sync-identity-center
 | `docker exec kiro-next npm run bootstrap-admin` | 최초 super 어드민 생성 |
 | `docker exec kiro-next npm run reset-initial-passwords` | TBIT 외 학교 학생 비번 일괄 재발급 |
 | `docker exec kiro-next npm run check-s3` | S3 접근 검증 |
-| `docker exec kiro-next npm run check-smtp` | Gmail SMTP 연결 검증 |
+| `docker exec kiro-next npm run check-ses` | AWS SES 권한/region 검증 |
 | `docker exec kiro-next npm run typecheck` | tsc --noEmit |
 
 ## 디렉토리 구조
@@ -95,7 +95,7 @@ lib/
   auth.ts               iron-session + Argon2id
   student-auth.ts       학생 세션 + requireActiveStudent 가드
   student-recovery.ts   비번 재설정 토큰
-  email.ts              Gmail SMTP
+  email.ts              AWS SES
   mask.ts               학생명 마스킹
 ingest/
   s3.ts                 S3 + STS AssumeRole
