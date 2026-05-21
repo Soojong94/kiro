@@ -5,7 +5,7 @@ import { SchoolSearch } from "@/components/SchoolSearch";
 import { MetricToggle } from "@/components/MetricToggle";
 import { loadDailyUsage, loadSchools, loadStudents } from "@/lib/db-data";
 import { computeMonthlyChampions, type Metric } from "@/lib/ranking";
-import { getStudentSession } from "@/lib/student-auth";
+import { requireActiveStudent } from "@/lib/student-auth";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -22,7 +22,7 @@ export default async function ChampionsPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   // ── 학생 세션 게이트 ───────────────────────────────────────────────
-  const studentSession = await getStudentSession();
+  const studentSession = await requireActiveStudent();
   const loggedIn = !!studentSession.userId;
   if (loggedIn && studentSession.mustChangePassword) {
     redirect("/change-password");

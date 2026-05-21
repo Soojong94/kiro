@@ -2,13 +2,13 @@
 
 import { redirect } from "next/navigation";
 import {
-  getStudentSession,
+  requireActiveStudent,
   updateStudentPassword,
   verifyCurrentStudentPassword,
 } from "@/lib/student-auth";
 
 export async function changePasswordAction(formData: FormData): Promise<void> {
-  const session = await getStudentSession();
+  const session = await requireActiveStudent();
   if (!session.userId || !session.schoolId) {
     redirect("/login");
   }

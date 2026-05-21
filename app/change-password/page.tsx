@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getStudentSession } from "@/lib/student-auth";
+import { requireActiveStudent } from "@/lib/student-auth";
 import { changePasswordAction } from "./actions";
 
 export const metadata = {
@@ -21,7 +21,7 @@ export default async function ChangePasswordPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const session = await getStudentSession();
+  const session = await requireActiveStudent();
   if (!session.userId) {
     redirect("/login");
   }

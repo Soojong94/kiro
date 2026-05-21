@@ -13,7 +13,7 @@ import {
   type Metric,
   type Period,
 } from "@/lib/ranking";
-import { getStudentSession } from "@/lib/student-auth";
+import { requireActiveStudent } from "@/lib/student-auth";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -53,7 +53,7 @@ export default async function PublicDashboard({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   // ── 학생 세션 게이트 ───────────────────────────────────────────────
-  const studentSession = await getStudentSession();
+  const studentSession = await requireActiveStudent();
   const loggedIn = !!studentSession.userId;
   if (loggedIn && studentSession.mustChangePassword) {
     redirect("/change-password");

@@ -4,6 +4,7 @@
 
 import { getIronSession, type SessionOptions } from "iron-session";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { hashPassword, verifyPassword } from "./auth";
 import { pool } from "./db";
 
@@ -34,6 +35,8 @@ const sessionOptions: SessionOptions = {
   },
 };
 
+// 기본 세션 로더 — 어떤 환경에서도 안전 (cookies 수정 X).
+// 로그인 / 로그인 페이지 등 "active 여부 무관한 흐름" 에서 사용.
 export async function getStudentSession() {
   if (!cookiePassword || cookiePassword.length < 32) {
     throw new Error(
@@ -41,22 +44,27 @@ export async function getStudentSession() {
     );
   }
   const store = await cookies();
-  const session = await getIronSession<StudentSession>(store, sessionOptions);
+  return getIronSession<StudentSession>(store, sessionOptions);
+}
 
-  // 탈퇴 학생 즉시 차단 — 다른 디바이스에 살아있는 세션도 다음 요청 시점에서 destroy.
-  // 학생이 노트북에서 탈퇴해도, 휴대폰 세션이 이 코드에 닿는 순간 무효화됨.
-  if (session.userId && session.schoolId) {
-    const { rows } = await pool.query<{ deactivated: boolean }>(
-      `SELECT (deactivated_at IS NOT NULL) AS deactivated
-         FROM students
-        WHERE school_id = $1 AND user_id = $2`,
-      [session.schoolId, session.userId],
-    );
-    if (rows[0]?.deactivated) {
-      await session.destroy();
-    }
+// 학생 페이지 진입 시 사용 — deactivated 학생은 /login?deactivated=1 로 즉시 redirect.
+// server component / server action 양쪽에서 안전 (cookies 수정 안 함, redirect 만 throw).
+// 다른 디바이스에 살아있던 세션도 다음 요청에서 이 함수가 막아줌.
+//
+// 주의: /login 페이지에서는 이 함수 호출 금지 — 무한 redirect 됨. /login 은 getStudentSession 사용.
+export async function requireActiveStudent() {
+  const session = await getStudentSession();
+  if (!session.userId || !session.schoolId) return session;
+
+  const { rows } = await pool.query<{ deactivated: boolean }>(
+    `SELECT (deactivated_at IS NOT NULL) AS deactivated
+       FROM students
+      WHERE school_id = $1 AND user_id = $2`,
+    [session.schoolId, session.userId],
+  );
+  if (rows[0]?.deactivated) {
+    redirect("/login?deactivated=1");
   }
-
   return session;
 }
 
