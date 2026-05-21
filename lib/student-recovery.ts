@@ -106,26 +106,33 @@ export async function requestPasswordReset(email: string): Promise<void> {
 // ─── 토큰으로 비밀번호 실제 변경 ──────────────────────────────────
 export interface ResetResult {
   ok: boolean;
-  reason?: "not_found" | "expired" | "used";
+  reason?: "not_found" | "expired" | "used" | "deactivated";
 }
 
 export async function consumeResetToken(
   token: string,
   newPassword: string,
 ): Promise<ResetResult> {
+  // JOIN students — 탈퇴 학생의 토큰은 사용 불가 (탈퇴 직전 발급된 토큰 막기).
   const { rows } = await pool.query<{
     student_school_id: string;
     student_user_id: string;
     expires_at: Date;
     used_at: Date | null;
+    deactivated_at: Date | null;
   }>(
-    `SELECT student_school_id, student_user_id, expires_at, used_at
-       FROM password_reset_tokens WHERE token = $1`,
+    `SELECT t.student_school_id, t.student_user_id, t.expires_at, t.used_at,
+            s.deactivated_at
+       FROM password_reset_tokens t
+       JOIN students s
+         ON s.school_id = t.student_school_id AND s.user_id = t.student_user_id
+      WHERE t.token = $1`,
     [token],
   );
   const t = rows[0];
   if (!t) return { ok: false, reason: "not_found" };
   if (t.used_at) return { ok: false, reason: "used" };
+  if (t.deactivated_at) return { ok: false, reason: "deactivated" };
   if (new Date(t.expires_at).getTime() < Date.now()) {
     return { ok: false, reason: "expired" };
   }

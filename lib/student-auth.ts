@@ -41,7 +41,23 @@ export async function getStudentSession() {
     );
   }
   const store = await cookies();
-  return getIronSession<StudentSession>(store, sessionOptions);
+  const session = await getIronSession<StudentSession>(store, sessionOptions);
+
+  // 탈퇴 학생 즉시 차단 — 다른 디바이스에 살아있는 세션도 다음 요청 시점에서 destroy.
+  // 학생이 노트북에서 탈퇴해도, 휴대폰 세션이 이 코드에 닿는 순간 무효화됨.
+  if (session.userId && session.schoolId) {
+    const { rows } = await pool.query<{ deactivated: boolean }>(
+      `SELECT (deactivated_at IS NOT NULL) AS deactivated
+         FROM students
+        WHERE school_id = $1 AND user_id = $2`,
+      [session.schoolId, session.userId],
+    );
+    if (rows[0]?.deactivated) {
+      await session.destroy();
+    }
+  }
+
+  return session;
 }
 
 export interface StudentLoginRow {
@@ -124,8 +140,11 @@ export async function verifyCurrentStudentPassword(
 }
 
 // 학생 본인 탈퇴 — 비번 재확인 후 deactivated_at = now() 마킹.
-// 데이터는 그대로 보존 (daily_usage / model_usage). 로그인 / 랭킹 노출만 차단.
+// 데이터는 그대로 보존 (daily_usage / model_usage / real_name). 로그인만 차단.
 // 어드민이 UPDATE deactivated_at = NULL 로 복구 가능.
+//
+// 동시에 본인의 미사용 reset 토큰도 모두 무효화 — 탈퇴 직전에 발급된 토큰으로
+// 1시간 안에 비번 변경하는 우회 막음 (변경해도 로그인은 차단이지만 깔끔하게).
 export async function deactivateStudent(
   schoolId: string,
   userId: string,
@@ -133,10 +152,26 @@ export async function deactivateStudent(
 ): Promise<boolean> {
   const ok = await verifyCurrentStudentPassword(schoolId, userId, currentPassword);
   if (!ok) return false;
-  await pool.query(
-    `UPDATE students SET deactivated_at = now()
-      WHERE school_id = $1 AND user_id = $2 AND deactivated_at IS NULL`,
-    [schoolId, userId],
-  );
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      `UPDATE students SET deactivated_at = now()
+        WHERE school_id = $1 AND user_id = $2 AND deactivated_at IS NULL`,
+      [schoolId, userId],
+    );
+    await client.query(
+      `UPDATE password_reset_tokens SET used_at = now()
+        WHERE student_school_id = $1 AND student_user_id = $2 AND used_at IS NULL`,
+      [schoolId, userId],
+    );
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
   return true;
 }

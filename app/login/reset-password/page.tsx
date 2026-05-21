@@ -16,21 +16,31 @@ function errorMessage(code?: string): string | null {
   if (code === "not_found") return "유효하지 않은 링크입니다.";
   if (code === "expired") return "링크가 만료되었습니다 (1시간 초과). 비밀번호 찾기를 다시 요청해주세요.";
   if (code === "used") return "이미 사용된 링크입니다. 비밀번호 찾기를 다시 요청해주세요.";
+  if (code === "deactivated") return "탈퇴 처리된 계정입니다. 학교 관리자에게 복구를 요청해주세요.";
   return "비밀번호 재설정에 실패했습니다.";
 }
 
-// 토큰 유효성 미리 점검 (페이지 첫 노출 시 만료/사용 알림용)
+// 토큰 유효성 미리 점검 (페이지 첫 노출 시 만료/사용/탈퇴 알림용)
 async function preflightToken(token: string): Promise<
   | { ok: true }
-  | { ok: false; reason: "not_found" | "expired" | "used" }
+  | { ok: false; reason: "not_found" | "expired" | "used" | "deactivated" }
 > {
-  const { rows } = await pool.query<{ expires_at: Date; used_at: Date | null }>(
-    `SELECT expires_at, used_at FROM password_reset_tokens WHERE token = $1`,
+  const { rows } = await pool.query<{
+    expires_at: Date;
+    used_at: Date | null;
+    deactivated_at: Date | null;
+  }>(
+    `SELECT t.expires_at, t.used_at, s.deactivated_at
+       FROM password_reset_tokens t
+       JOIN students s
+         ON s.school_id = t.student_school_id AND s.user_id = t.student_user_id
+      WHERE t.token = $1`,
     [token],
   );
   const t = rows[0];
   if (!t) return { ok: false, reason: "not_found" };
   if (t.used_at) return { ok: false, reason: "used" };
+  if (t.deactivated_at) return { ok: false, reason: "deactivated" };
   if (new Date(t.expires_at).getTime() < Date.now()) {
     return { ok: false, reason: "expired" };
   }
