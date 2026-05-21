@@ -6,6 +6,7 @@ import {
   createStudentAction,
   deleteStudentAction,
   resetStudentPasswordAction,
+  restoreStudentAction,
 } from "./actions";
 
 export const metadata = {
@@ -24,6 +25,7 @@ interface StudentRow {
   username: string | null;
   email: string | null;
   mustChange: boolean;
+  deactivated: boolean;
   lastLoginAt: string | null;
   createdAt: string;
 }
@@ -67,9 +69,11 @@ async function loadStudents(
   }
 
   const where = conds.length ? `WHERE ${conds.join(" AND ")}` : "";
+  // 어드민 목록은 deactivated 학생도 표시 — 다른 색깔 + 복구 버튼.
   const sql = `
     SELECT s.school_id, sc.name AS school_name, s.user_id, s.real_name,
            s.username, s.email, s.must_change_password,
+           s.deactivated_at IS NOT NULL AS deactivated,
            to_char(s.last_login_at, 'YYYY-MM-DD HH24:MI') AS last_login_at,
            to_char(s.created_at,    'YYYY-MM-DD')         AS created_at
       FROM students s
@@ -85,6 +89,7 @@ async function loadStudents(
     username: string | null;
     email: string | null;
     must_change_password: boolean;
+    deactivated: boolean;
     last_login_at: string | null;
     created_at: string;
   }>(sql, params);
@@ -96,6 +101,7 @@ async function loadStudents(
     username: r.username,
     email: r.email,
     mustChange: r.must_change_password,
+    deactivated: r.deactivated,
     lastLoginAt: r.last_login_at,
     createdAt: r.created_at,
   }));
@@ -117,6 +123,7 @@ const OK_MSGS: Record<string, string> = {
   created: "학생 계정이 생성되었습니다.",
   reset: "비밀번호가 재발급되었습니다.",
   deleted: "학생이 제거되었습니다.",
+  restored: "탈퇴 학생이 복구되었습니다.",
 };
 
 export default async function StudentsPage({
@@ -342,28 +349,51 @@ export default async function StudentsPage({
                 </tr>
               )}
               {students.map((s) => (
-                <tr key={`${s.schoolId}/${s.userId}`} className="border-t border-[#f4f5f6]">
+                <tr
+                  key={`${s.schoolId}/${s.userId}`}
+                  className={
+                    "border-t border-[#f4f5f6] " +
+                    (s.deactivated ? "bg-[#f4f5f7] text-[#95a5b8]" : "")
+                  }
+                >
                   <Td>{s.schoolName}</Td>
-                  <Td className="font-semibold text-[#16191f]">{s.realName}</Td>
+                  <Td className={s.deactivated ? "font-semibold" : "font-semibold text-[#16191f]"}>
+                    {s.realName}
+                    {s.deactivated && (
+                      <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#fdf2f0] text-[#7c2c2c] ring-1 ring-[#f1c0bf]">
+                        탈퇴
+                      </span>
+                    )}
+                  </Td>
                   <Td>
                     {s.username ?? <span className="text-[#95a5b8]">—</span>}
-                    {s.mustChange && s.username && (
+                    {s.mustChange && s.username && !s.deactivated && (
                       <span className="ml-1.5 text-[10px] font-bold text-[#ec7211]">
                         ↻
                       </span>
                     )}
                   </Td>
-                  <Td className="text-[#414d5c]">{s.email ?? "—"}</Td>
-                  <Td className="text-[#5f6b7a] tabular-nums">{s.lastLoginAt ?? "—"}</Td>
-                  <Td className="text-[#5f6b7a] tabular-nums">{s.createdAt}</Td>
+                  <Td className={s.deactivated ? "" : "text-[#414d5c]"}>{s.email ?? "—"}</Td>
+                  <Td className="tabular-nums">{s.lastLoginAt ?? "—"}</Td>
+                  <Td className="tabular-nums">{s.createdAt}</Td>
                   <Td>
                     <div className="flex items-center gap-1.5">
-                      <ResetForm schoolId={s.schoolId} userId={s.userId} />
-                      <DeleteForm
-                        schoolId={s.schoolId}
-                        userId={s.userId}
-                        realName={s.realName}
-                      />
+                      {s.deactivated ? (
+                        <RestoreForm
+                          schoolId={s.schoolId}
+                          userId={s.userId}
+                          realName={s.realName}
+                        />
+                      ) : (
+                        <>
+                          <ResetForm schoolId={s.schoolId} userId={s.userId} />
+                          <DeleteForm
+                            schoolId={s.schoolId}
+                            userId={s.userId}
+                            realName={s.realName}
+                          />
+                        </>
+                      )}
                     </div>
                   </Td>
                 </tr>
@@ -476,6 +506,30 @@ function DeleteForm({
         title={`'${realName}' 삭제`}
       >
         제거
+      </ConfirmSubmitButton>
+    </form>
+  );
+}
+
+function RestoreForm({
+  schoolId,
+  userId,
+  realName,
+}: {
+  schoolId: string;
+  userId: string;
+  realName: string;
+}) {
+  return (
+    <form action={restoreStudentAction}>
+      <input type="hidden" name="school_id" value={schoolId} />
+      <input type="hidden" name="user_id" value={userId} />
+      <ConfirmSubmitButton
+        message={`'${realName}' 학생을 복구합니다. 다시 로그인 가능하게 됩니다. 진행할까요?`}
+        className="px-2 py-1 rounded-md bg-white ring-1 ring-[#9bd4b7] text-[11px] font-semibold text-[#1d6638] hover:bg-[#f1f8f5]"
+        title={`'${realName}' 복구`}
+      >
+        복구
       </ConfirmSubmitButton>
     </form>
   );

@@ -55,6 +55,8 @@ export interface StudentLoginRow {
 export async function findStudentByUsername(
   username: string,
 ): Promise<StudentLoginRow | null> {
+  // deactivated_at 가드 — 본인이 탈퇴한 계정은 로그인 자체 차단.
+  // 어드민이 UPDATE deactivated_at=NULL 로 복구해줘야만 다시 로그인 가능.
   const { rows } = await pool.query<{
     school_id: string;
     user_id: string;
@@ -64,7 +66,9 @@ export async function findStudentByUsername(
   }>(
     `SELECT school_id, user_id, username, password_hash, must_change_password
        FROM students
-      WHERE username = $1 AND password_hash IS NOT NULL
+      WHERE username = $1
+        AND password_hash IS NOT NULL
+        AND deactivated_at IS NULL
       LIMIT 1`,
     [username],
   );
@@ -117,4 +121,22 @@ export async function verifyCurrentStudentPassword(
   const stored = rows[0]?.password_hash;
   if (!stored) return false;
   return verifyPassword(plain, stored);
+}
+
+// 학생 본인 탈퇴 — 비번 재확인 후 deactivated_at = now() 마킹.
+// 데이터는 그대로 보존 (daily_usage / model_usage). 로그인 / 랭킹 노출만 차단.
+// 어드민이 UPDATE deactivated_at = NULL 로 복구 가능.
+export async function deactivateStudent(
+  schoolId: string,
+  userId: string,
+  currentPassword: string,
+): Promise<boolean> {
+  const ok = await verifyCurrentStudentPassword(schoolId, userId, currentPassword);
+  if (!ok) return false;
+  await pool.query(
+    `UPDATE students SET deactivated_at = now()
+      WHERE school_id = $1 AND user_id = $2 AND deactivated_at IS NULL`,
+    [schoolId, userId],
+  );
+  return true;
 }

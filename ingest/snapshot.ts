@@ -130,7 +130,7 @@ async function loadUsageData(): Promise<{
       user_id: string;
       real_name: string;
       cohort: string | null;
-    }>(`SELECT school_id, user_id, real_name, cohort FROM students`),
+    }>(`SELECT school_id, user_id, real_name, cohort FROM students WHERE deactivated_at IS NULL`),
     // 월별 챔피언 12개월 커버를 위해 400일치 로드
     pool.query<{
       date: string;

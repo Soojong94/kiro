@@ -178,3 +178,35 @@ export async function deleteStudentAction(formData: FormData): Promise<void> {
   revalidatePath("/admin/students");
   redirect("/admin/students?ok=deleted");
 }
+
+// 탈퇴 학생 복구 — deactivated_at 만 NULL 로. 다른 컬럼은 그대로.
+export async function restoreStudentAction(formData: FormData): Promise<void> {
+  const admin = await requireAdmin();
+
+  const schoolId = String(formData.get("school_id") ?? "");
+  const userId = String(formData.get("user_id") ?? "");
+  if (!schoolId || !userId) {
+    redirect("/admin/students?error=invalid");
+  }
+
+  assertSchoolScope(admin.role, admin.schoolId, schoolId);
+
+  const { rowCount } = await pool.query(
+    `UPDATE students SET deactivated_at = NULL
+      WHERE school_id = $1 AND user_id = $2 AND deactivated_at IS NOT NULL`,
+    [schoolId, userId],
+  );
+  if (!rowCount) {
+    redirect("/admin/students?error=not_found");
+  }
+
+  await recordAudit(
+    admin.username,
+    "student.restore",
+    `${schoolId}/${userId}`,
+    null,
+  );
+
+  revalidatePath("/admin/students");
+  redirect("/admin/students?ok=restored");
+}

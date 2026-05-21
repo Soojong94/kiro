@@ -30,6 +30,7 @@ export default async function StudentLoginPage({
   const code = Array.isArray(sp.error) ? sp.error[0] : sp.error;
   const sec = Array.isArray(sp.sec) ? sp.sec[0] : sp.sec;
   const reset = (Array.isArray(sp.reset) ? sp.reset[0] : sp.reset) === "1";
+  const left = (Array.isArray(sp.left) ? sp.left[0] : sp.left) === "1";
   const msg = errorMessage(code, sec);
 
   return (
@@ -87,6 +88,11 @@ export default async function StudentLoginPage({
           {reset && !msg && (
             <div className="rounded-md bg-[#f1f8f5] ring-1 ring-[#9bd4b7] px-3 py-2 text-[12.5px] text-[#1d6638]">
               비밀번호가 재설정되었습니다. 새 비밀번호로 로그인해주세요.
+            </div>
+          )}
+          {left && !msg && (
+            <div className="rounded-md bg-[#f4f5f7] ring-1 ring-[#d5dbdb] px-3 py-2 text-[12.5px] text-[#5f6b7a]">
+              탈퇴 처리가 완료되었습니다. 복구는 학교 관리자에게 문의해주세요.
             </div>
           )}
           {msg && (

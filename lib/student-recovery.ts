@@ -35,6 +35,7 @@ export async function requestUsernameRecovery(email: string): Promise<void> {
       WHERE lower(email) = $1
         AND username IS NOT NULL
         AND must_change_password = false
+        AND deactivated_at IS NULL
       LIMIT 1`,
     [normalized],
   );
@@ -68,6 +69,7 @@ export async function requestPasswordReset(email: string): Promise<void> {
       WHERE lower(email) = $1
         AND username IS NOT NULL
         AND must_change_password = false
+        AND deactivated_at IS NULL
       LIMIT 1`,
     [normalized],
   );

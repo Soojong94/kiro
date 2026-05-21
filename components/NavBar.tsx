@@ -45,6 +45,12 @@ export async function NavBar({ hideAuth = false }: { hideAuth?: boolean } = {}) 
                   로그아웃
                 </button>
               </form>
+              <Link
+                href="/leave"
+                className="text-[11px] text-white/35 hover:text-white/70 transition-colors"
+              >
+                탈퇴
+              </Link>
             </>
           )}
           {!hideAuth && !loggedIn && (
