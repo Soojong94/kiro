@@ -77,3 +77,6 @@ yarn-error.log*
 
 # 개인 운영 매뉴얼 — 인프라 상세 / IAM / 식별자 포함, 로컬만 보관
 docs/private/
+
+# drawio 자동 백업 (임시)
+.$*.drawio.bkp
