@@ -1,8 +1,9 @@
 [Unit]
-Description=Kiro daily cron at 02:05 UTC (= 11:05 KST)
+Description=Kiro daily cron at 03:00 UTC (= 12:00 KST)
 
 [Timer]
-OnCalendar=*-*-* 02:05:00 UTC
+# Kiro 가 02:00 UTC 떨궈도 가끔 늦으니 1시간 마진. 학생 페이지 안내 멘트와도 일관.
+OnCalendar=*-*-* 03:00:00 UTC
 Persistent=true
 Unit=kiro-daily.service
 

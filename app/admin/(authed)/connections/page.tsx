@@ -146,7 +146,7 @@ export default async function ConnectionsPage({
             <div className="mt-1 text-[12px] text-[#1d6638]">{testSummary}</div>
           )}
           <div className="mt-2 text-[12px] text-[#1d6638]">
-            <strong>00:00 KST 자정에 자동 sync</strong>, <strong>11:05 KST 에 사용량 ingest</strong> 됩니다.
+            <strong>00:00 KST 자정에 자동 sync</strong>, <strong>12:00 KST 에 사용량 ingest</strong> 됩니다.
           </div>
         </div>
       )}
