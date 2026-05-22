@@ -2,12 +2,12 @@
 
 | 항목 | 값 |
 | --- | --- |
-| 문서 버전 | v1.0 (운영 시작) |
+| 문서 버전 | v1.1 (보안 강화 — nginx 헤더, 로그인 audit, 비번 변경 시 세션 무효화) |
 | 작성일 | 2026-05-14 / 최종 갱신 2026-05-21 |
 | 담당 | 자체 (회사 내부) |
 | 대상 | TBIT 가 AWS Kiro 를 제공한 **여러 학교** 학생 / TBIT 내부 보고 담당자 / 학교 운영자(뷰어) |
-| 현재 상태 | **v1.0 운영 중** — kiro.tbit.co.kr, 단일 cron (12:00 KST), 학생 탈퇴 + 복구, 초기 비번 일괄 다운로드, S3 자동 DB 백업 |
-| 차후 목표 | AWS SES 마이그레이션, cross-account 학교 실제 합류, 어드민 MFA, 학생 알림 |
+| 현재 상태 | **v1.1 운영 중** — kiro.tbit.co.kr, 단일 cron (12:00 KST), 학생 탈퇴 + 복구, 초기 비번 일괄 다운로드, S3 자동 DB 백업, **보안 헤더 + 로그인 audit + 비번 변경 세션 무효화**. AWS SES 발송 (us-east-1) |
+| 차후 목표 | cross-account 학교 실제 합류, 어드민 MFA, 학생 알림, 더 엄격한 CSP (nonce-based) |
 
 각 요구사항 옆 태그:
 - **[✓ v1.0]** — 구현 완료
@@ -119,6 +119,13 @@
 - HTTPS 필수. nginx + Let's Encrypt. [✓]
 - 환경변수에 비밀값. `.env`는 git ignore. AWS 자격증명은 EC2 instance profile. [✓]
 - 학생 탈퇴 시 모든 디바이스 세션 즉시 무효화 + 미사용 비번 재설정 토큰 동시 무효화. [✓ v1.0]
+
+**v1.1 보안 강화 (적용 완료)**:
+- nginx 보안 헤더: HSTS (1년) / X-Content-Type-Options nosniff / X-Frame-Options DENY / Referrer-Policy strict-origin-when-cross-origin / CSP frame-ancestors 'none'. [✓ v1.1]
+- 비번 재설정 토큰이 들어가는 `/login/reset-password` 경로 nginx access log 비활성화 — 토큰이 로그에 평문 노출되는 위험 차단. [✓ v1.1]
+- 로그인 시도 audit 기록 (성공/실패 모두) — `audit_log` 에 `{admin,student}.login.{success,fail}` action 으로 저장. 실패 시 actor 는 ip 기록, reason (`wrong_password` / `user_not_found`) 까지. [✓ v1.1]
+- 어드민 비번 변경 시 다른 디바이스 세션 즉시 무효화 — `admins.password_changed_at` 기준 `loggedInAt` 비교, getSession 가드에서 자동 처리. 본인 세션은 변경 액션이 `loggedInAt` 갱신해서 유지. [✓ v1.1]
+
 - 어드민 MFA. [v2]
 
 ## 7. 데이터 파이프라인 (Ingest)

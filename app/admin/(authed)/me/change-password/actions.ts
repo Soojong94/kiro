@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
   findAdminByUsername,
+  getSession,
   hashPassword,
   recordAudit,
   requireAdmin,
@@ -44,6 +45,12 @@ export async function changeMyPasswordAction(formData: FormData): Promise<void> 
     `UPDATE admins SET password_hash = $1, password_changed_at = now() WHERE id = $2`,
     [hash, me.adminId],
   );
+
+  // 본인 세션 loggedInAt 갱신 — 본인은 계속 로그인 유지, 다른 디바이스 세션만 무효화.
+  // (getSession 의 password_changed_at > loggedInAt 가드를 본인이 통과하도록.)
+  const session = await getSession();
+  session.loggedInAt = Date.now();
+  await session.save();
 
   await recordAudit(me.username, "admin.self_password_change", String(me.adminId), null);
   revalidatePath("/admin");

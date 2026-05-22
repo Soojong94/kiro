@@ -43,7 +43,27 @@ export async function getSession() {
   }
   // Next 15+ : cookies() 는 async
   const store = await cookies();
-  return getIronSession<AdminSession>(store, sessionOptions);
+  const session = await getIronSession<AdminSession>(store, sessionOptions);
+
+  // 비번 변경 시점 이후 발급된 세션만 유효 — 비번 바꾸면 다른 디바이스 자동 logout.
+  // server component 에서 cookies 수정 불가 (Next 16 제약) → in-memory 만 비움.
+  // layout 의 if (!session.adminId) redirect("/admin/login") 가 받아서 처리.
+  if (session.adminId && session.loggedInAt) {
+    const { rows } = await pool.query<{ password_changed_at: Date }>(
+      `SELECT password_changed_at FROM admins WHERE id = $1`,
+      [session.adminId],
+    );
+    const pwChanged = rows[0]?.password_changed_at;
+    if (pwChanged && session.loggedInAt < pwChanged.getTime()) {
+      session.adminId = undefined;
+      session.username = undefined;
+      session.role = undefined;
+      session.schoolId = undefined;
+      session.loggedInAt = undefined;
+    }
+  }
+
+  return session;
 }
 
 // OWASP 권고치 기반. m=64MB, t=3, p=4.
@@ -153,6 +173,22 @@ export async function recordAudit(
     `INSERT INTO audit_log (actor, action, target, payload) VALUES ($1, $2, $3, $4)`,
     [actor, action, target, JSON.stringify(payload ?? null)],
   );
+}
+
+// 로그인 시도 audit — 성공/실패 모두. 실패 시 actor 는 "ip:<ip>" 로 기록 (시도자 식별 X).
+// 의심 활동 추적 용도. action 형식: "{admin|student}.login.{success|fail}".
+export async function recordLoginAttempt(
+  scope: "admin" | "student",
+  result: "success" | "fail",
+  opts: { username: string; ip: string; reason?: string },
+): Promise<void> {
+  const actor =
+    result === "success" ? `${scope}:${opts.username}` : `ip:${opts.ip}`;
+  const action = `${scope}.login.${result}`;
+  await recordAudit(actor, action, opts.username, {
+    ip: opts.ip,
+    ...(opts.reason ? { reason: opts.reason } : {}),
+  });
 }
 
 // 로그인 실패 IP rate limit — 5회 실패 시 60초 잠금.

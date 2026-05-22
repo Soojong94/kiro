@@ -7,6 +7,7 @@ import {
   getSession,
   isLocked,
   recordAudit,
+  recordLoginAttempt,
   recordLoginFailure,
   recordLoginSuccess,
   touchLastLogin,
@@ -44,6 +45,11 @@ export async function loginAction(formData: FormData): Promise<void> {
 
   if (!admin || !ok) {
     recordLoginFailure(ip);
+    await recordLoginAttempt("admin", "fail", {
+      username,
+      ip,
+      reason: admin ? "wrong_password" : "user_not_found",
+    });
     redirect("/admin/login?error=invalid");
   }
 
@@ -57,7 +63,7 @@ export async function loginAction(formData: FormData): Promise<void> {
   await session.save();
 
   await touchLastLogin(admin.id);
-  await recordAudit(admin.username, "admin.login", null, { ip });
+  await recordLoginAttempt("admin", "success", { username: admin.username, ip });
 
   redirect("/admin");
 }

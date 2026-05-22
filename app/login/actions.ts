@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import {
   isLocked,
+  recordLoginAttempt,
   recordLoginFailure,
   recordLoginSuccess,
   verifyPassword,
@@ -45,6 +46,11 @@ export async function studentLoginAction(formData: FormData): Promise<void> {
 
   if (!student || !ok) {
     recordLoginFailure(ip);
+    await recordLoginAttempt("student", "fail", {
+      username,
+      ip,
+      reason: student ? "wrong_password" : "user_not_found",
+    });
     redirect("/login?error=invalid");
   }
 
@@ -58,6 +64,10 @@ export async function studentLoginAction(formData: FormData): Promise<void> {
   await session.save();
 
   await touchStudentLastLogin(student.schoolId, student.userId);
+  await recordLoginAttempt("student", "success", {
+    username: student.username,
+    ip,
+  });
 
   if (student.mustChangePassword) {
     redirect("/change-password");
