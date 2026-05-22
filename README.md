@@ -2,7 +2,7 @@
 
 회사가 학교/조직에 제공한 **AWS Kiro** 사용 현황을 학생 단위로 집계해 공정하고 가시적인 랭킹을 제공하는 웹 서비스. 학생은 본인 위치를 즉시 확인하고, 운영자(TBIT 및 각 학교 어드민)는 조직별 활용도와 학생별 활동을 한눈에 본다.
 
-**상태**: v1.0 운영 중 (kiro.tbit.co.kr)
+**상태**: v1.1 운영 중 (kiro.tbit.co.kr) — 보안 강화 (nginx 헤더 / 로그인 audit / 비번 변경 세션 무효화) + AWS SES 메일
 
 ## 핵심 동작
 
@@ -130,12 +130,13 @@ samples/credentials/    sync 가 생성한 학생 초기 비번 CSV (gitignored)
 - S3 원본 CSV 는 730일 라이프사이클 자동 만료 (Kiro raw)
 - DB 백업: pg_dump → S3 `db-backups/` 30일 자동 만료
 - 세션 쿠키: `httpOnly`, `secure`, `sameSite=lax`. 학생 7일, 어드민 8시간
+- **v1.1 보안 강화**: nginx 보안 헤더 5종 (HSTS / nosniff / X-Frame-Options DENY / Referrer-Policy / CSP) + 로그인 시도 audit (성공/실패 모두) + 어드민 비번 변경 시 다른 디바이스 자동 logout + `/login/reset-password` access log 제외
 
 ## 더 보기
 
-- [`PRD.md`](PRD.md) — 제품 요구사항 (v1.0 구현 태그 포함)
+- [`PRD.md`](PRD.md) — 제품 요구사항 (v1.0/v1.1 구현 태그 포함)
 - [`CLAUDE.md`](CLAUDE.md) — 코드 컨벤션 / 작업 가이드
 - [`DEPLOY.md`](DEPLOY.md) — 최초 배포 절차
-- [`CROSS_ACCOUNT_S3.md`](CROSS_ACCOUNT_S3.md) — 새 학교 (별도 AWS 계정) 온보딩 (v1.0 미사용)
+- [`CROSS_ACCOUNT_S3.md`](CROSS_ACCOUNT_S3.md) — 새 학교 (별도 AWS 계정) 온보딩 (v1.1 미사용)
 - `docs/data-flow.drawio` — 데이터 흐름 다이어그램
 - `docs/private/OPERATIONS.md` — 운영 매뉴얼 (로컬 전용, git 제외)

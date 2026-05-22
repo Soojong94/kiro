@@ -4,7 +4,7 @@
 
 ## 프로젝트 한 줄 요약
 
-학교에 제공된 **AWS Kiro** 사용 현황(토큰/크레딧, 출석)을 학생별로 랭킹하여 보여주는 통합 대시보드. **학생 페이지**(로그인 필요, 마스킹된 이름)와 **관리자 페이지**(슈퍼/학교 어드민) 두 영역 제공. **v1.0 운영 중**.
+학교에 제공된 **AWS Kiro** 사용 현황(토큰/크레딧, 출석)을 학생별로 랭킹하여 보여주는 통합 대시보드. **학생 페이지**(로그인 필요, 마스킹된 이름)와 **관리자 페이지**(슈퍼/학교 어드민) 두 영역 제공. **v1.1 운영 중** (v1.0 기능 + 보안 강화 + AWS SES).
 
 ## 데이터 흐름
 
@@ -70,7 +70,7 @@ kiro/
 │   └── types.ts               CSV ↔ TS 타입
 ├── ingest/
 │   ├── sync.ts                cron 진입 (S3 → DB)
-│   ├── s3.ts                  S3 client + STS AssumeRole (cross-account, v1.0 미사용)
+│   ├── s3.ts                  S3 client + STS AssumeRole (cross-account, v1.1 미사용)
 │   ├── parse.ts               Kiro CSV 파서
 │   └── snapshot.ts            스냅샷 재계산
 ├── scripts/
@@ -162,7 +162,7 @@ TZ=Asia/Seoul
 
 ## DB 스키마 요점 (마이그레이션 010 까지)
 
-- `connections(id pk, name, aws_account_id, ic_instance_id, ic_region, s3_bucket, s3_prefix, s3_region, role_arn null, created_at)` — **AWS 계정 단위 인제스트 출처.** 한 connection 이 여러 학교(IC 그룹) 호스팅 가능. cross-account 시 role_arn 으로 AssumeRole. 슈퍼 어드민만 등록/편집. v1.0 운영: `tbit-main` 1건.
+- `connections(id pk, name, aws_account_id, ic_instance_id, ic_region, s3_bucket, s3_prefix, s3_region, role_arn null, created_at)` — **AWS 계정 단위 인제스트 출처.** 한 connection 이 여러 학교(IC 그룹) 호스팅 가능. cross-account 시 role_arn 으로 AssumeRole. 슈퍼 어드민만 등록/편집. v1.1 운영: `tbit-main` 1건.
 - `schools(id pk, name, kind('high_school'|'university'|'region'), is_internal, connection_id fk, created_at)` — 학교 = IC 그룹의 우리 측 표현. id 는 IC 그룹명. sync 가 자동 생성. S3/IC 설정은 갖지 않음 (connection 으로 위임).
 - `students(school_id, user_id, real_name, cohort null, username, email, password_hash, must_change_password, initial_password null, deactivated_at null, last_login_at, created_at, pk(school_id, user_id))`
   - `user_id` = IC 사용자 UUID. **`real_name`은 공개 응답에 절대 노출 금지.** 표시용은 `lib/mask.ts` 거친 값만.
@@ -210,10 +210,16 @@ TZ=Asia/Seoul
 - AWS 자격 증명은 EC2 instance profile 로 (현재 운영 그렇게). 키 직접 저장 금지.
 - 비번 평문 (`students.initial_password`) 은 한 번 채워지면 영구 — 학생이 변경한 비번을 따로 저장하지 않음 (해시만).
 
+**v1.1 보안 강화 (이미 적용됨)**:
+- nginx 보안 헤더 5종: HSTS (1년) / X-Content-Type-Options nosniff / X-Frame-Options DENY / Referrer-Policy strict-origin-when-cross-origin / CSP frame-ancestors 'none'. ops/nginx-kiro.conf 참조.
+- `/login/reset-password` access log 제외 — 비번 재설정 토큰 (1시간 / 1회용) 이 nginx 로그에 평문 노출되는 위험 차단.
+- 로그인 시도 audit — `audit_log` 에 `{admin,student}.login.{success,fail}` 기록. 실패 시 actor=`ip:<ip>`, payload 에 reason. 의심 활동 SQL 쿼리는 docs/private/OPERATIONS.md 참조.
+- 어드민 비번 변경 시 다른 디바이스 자동 logout — `getSession` 이 `admins.password_changed_at > session.loggedInAt` 비교. 본인 세션은 변경 액션이 `loggedInAt` 갱신해서 유지.
+
 ## 작업 시 참고
 
 - 작업 시작 전 [PRD.md](PRD.md), [DEPLOY.md](DEPLOY.md) 참조. 운영 디테일은 `docs/private/OPERATIONS.md` (로컬 전용).
 - 새 학교 합류 (단일 AWS 계정) 시 `/admin/connections/guide` 참고. UI 에서 connection 1건 등록 → sync → 자동 import.
-- 새 학교가 별도 AWS 계정인 경우 [`CROSS_ACCOUNT_S3.md`](CROSS_ACCOUNT_S3.md) (v1.0 미사용).
+- 새 학교가 별도 AWS 계정인 경우 [`CROSS_ACCOUNT_S3.md`](CROSS_ACCOUNT_S3.md) (v1.1 미사용).
 - AWS 공식 샘플 [`aws-samples/sample-kiro-user-analytics-dashboard`](https://github.com/aws-samples/sample-kiro-user-analytics-dashboard) 가 동일한 CSV 를 다루므로 컬럼/매핑 검증 시 교차 참고.
 - 마이그레이션 추가 시: `db/migrations/0XX-name.sql` 파일. 운영 적용은 **사람이 수동으로** (자동화 금지).
