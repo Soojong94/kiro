@@ -458,22 +458,15 @@ function ResetForm({
   userId: string;
 }) {
   return (
-    <form action={resetStudentPasswordAction} className="inline-flex items-center gap-1">
+    <form action={resetStudentPasswordAction} className="inline-flex">
       <input type="hidden" name="school_id" value={schoolId} />
       <input type="hidden" name="user_id" value={userId} />
-      <PasswordField
-        name="new_password"
-        placeholder="새 비번"
-        required
-        minLength={8}
-        size="small"
-      />
-      <button
-        type="submit"
-        className="px-2 py-1 rounded-md bg-white ring-1 ring-[#d5dbdb] text-[11px] font-semibold text-[#414d5c] hover:bg-[#f2f3f3] cursor-pointer"
+      <ConfirmSubmitButton
+        message="학생이 다음 로그인 시 이메일로 새 비밀번호 설정 안내를 받게 됩니다. 진행할까요?"
+        className="px-2 py-1 rounded-md bg-white ring-1 ring-[#d5dbdb] text-[11px] font-semibold text-[#414d5c] hover:bg-[#f2f3f3]"
       >
         재발급
-      </button>
+      </ConfirmSubmitButton>
     </form>
   );
 }

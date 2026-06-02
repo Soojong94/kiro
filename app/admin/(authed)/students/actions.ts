@@ -86,21 +86,22 @@ export async function createStudentAction(formData: FormData): Promise<void> {
   redirect("/admin/students?ok=created");
 }
 
-// 비번 재발급 — 초기화 + must_change_password=true
+// 비번 재발급 — random hash 로 갱신 + must_change_password=true.
+// 학생이 다음 로그인 시 자동으로 이메일 인증 흐름 (requestInitialSetup) 으로 진입.
+// 어드민이 비번을 정할 필요 없음 — 학생 본인이 이메일 인증으로 다시 설정.
 export async function resetStudentPasswordAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
 
   const schoolId = String(formData.get("school_id") ?? "");
   const userId = String(formData.get("user_id") ?? "");
-  const newPassword = String(formData.get("new_password") ?? "");
-
-  if (!schoolId || !userId || newPassword.length < 8) {
-    redirect("/admin/students?error=reset_invalid");
+  if (!schoolId || !userId) {
+    redirect("/admin/students?error=invalid");
   }
 
   assertSchoolScope(admin.role, admin.schoolId, schoolId);
 
-  const passwordHash = await hashPassword(newPassword);
+  // 학생이 어차피 이메일 인증으로 본인 비번 설정 — random hash 로 마킹만.
+  const passwordHash = await hashPassword(randomBytes(24).toString("base64url"));
   const { rowCount } = await pool.query(
     `UPDATE students
         SET password_hash = $1, must_change_password = true
