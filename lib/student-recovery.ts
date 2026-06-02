@@ -103,6 +103,48 @@ export async function requestPasswordReset(email: string): Promise<void> {
   });
 }
 
+// ─── 초기 비밀번호 설정 토큰 발급 ─────────────────────────────────
+// 학생이 /login 에서 username 입력 + must_change_password=true 발견 시 호출.
+// 등록된 이메일로 토큰 링크 발송 → 학생이 클릭 → 비번 설정.
+// 같은 토큰 흐름 (consumeResetToken) 재사용 — 비번 설정 후 must_change_password=false 됨.
+//
+// 게이트: must_change_password = true + deactivated_at IS NULL + email NOT NULL.
+// 같은 1시간에 5회 초과 시도 시 차단 (rate limit).
+export async function requestInitialSetup(opts: {
+  schoolId: string;
+  userId: string;
+  realName: string;
+  email: string;
+}): Promise<void> {
+  if (!opts.email) return;
+
+  // rate limit: 같은 학생이 1시간 안에 5건 이상이면 차단
+  const { rows: cnt } = await pool.query<{ c: string }>(
+    `SELECT count(*)::text AS c FROM password_reset_tokens
+      WHERE student_school_id = $1 AND student_user_id = $2
+        AND created_at > now() - INTERVAL '1 hour'`,
+    [opts.schoolId, opts.userId],
+  );
+  if (Number(cnt[0].c) >= 5) return;
+
+  const token = genToken();
+  const expires = new Date(Date.now() + TOKEN_TTL_MS);
+  await pool.query(
+    `INSERT INTO password_reset_tokens
+       (token, student_school_id, student_user_id, expires_at)
+     VALUES ($1, $2, $3, $4)`,
+    [token, opts.schoolId, opts.userId, expires.toISOString()],
+  );
+
+  const link = `${appBaseUrl()}/login/reset-password?token=${encodeURIComponent(token)}`;
+  await sendMail({
+    to: opts.email,
+    subject: "[Kiro 통합 랭킹] 비밀번호 설정 안내",
+    text: initialSetupText(opts.realName, link),
+    html: initialSetupHtml(opts.realName, link),
+  });
+}
+
 // ─── 토큰으로 비밀번호 실제 변경 ──────────────────────────────────
 export interface ResetResult {
   ok: boolean;
@@ -217,6 +259,35 @@ function passwordResetHtml(realName: string, link: string): string {
          style="display:inline-block;background:#0972d3;color:#fff;text-decoration:none;
                 padding:12px 24px;border-radius:6px;font-weight:600;font-size:14px;">
         비밀번호 재설정
+      </a>
+    </p>
+    <p style="font-size:12px;color:#5f6b7a;">버튼이 동작하지 않으면 아래 주소를 브라우저에 직접 붙여넣어 주세요:<br/>
+      <span style="word-break:break-all;color:#0972d3;">${escapeHtml(link)}</span></p>
+    <p style="font-size:12px;color:#5f6b7a;">본인이 요청하지 않았다면 이 메일을 무시하셔도 됩니다.</p>
+  `);
+}
+
+function initialSetupText(realName: string, link: string): string {
+  return `안녕하세요 ${realName}님,
+
+Kiro 통합 랭킹에 오신 것을 환영합니다 🎉
+아래 링크를 클릭해서 본인 비밀번호를 설정해주세요 (1시간 유효).
+
+  ${link}
+
+본인이 요청하지 않았다면 이 메일을 무시하셔도 됩니다.`;
+}
+
+function initialSetupHtml(realName: string, link: string): string {
+  return baseHtml(`
+    <p>안녕하세요 <strong>${escapeHtml(realName)}</strong>님,</p>
+    <p>Kiro 통합 랭킹에 오신 것을 환영합니다 🎉<br/>
+       아래 버튼을 눌러 본인이 사용할 비밀번호를 설정해주세요. <strong>링크는 1시간 동안 유효</strong>합니다.</p>
+    <p style="text-align:center;margin:24px 0;">
+      <a href="${escapeHtml(link)}"
+         style="display:inline-block;background:#0972d3;color:#fff;text-decoration:none;
+                padding:12px 24px;border-radius:6px;font-weight:600;font-size:14px;">
+        비밀번호 설정
       </a>
     </p>
     <p style="font-size:12px;color:#5f6b7a;">버튼이 동작하지 않으면 아래 주소를 브라우저에 직접 붙여넣어 주세요:<br/>

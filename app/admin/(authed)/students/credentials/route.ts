@@ -1,11 +1,11 @@
-// 초기 비밀번호 일괄 CSV 다운로드 — 슈퍼 어드민 전용.
+// 학생 명단 일괄 CSV 다운로드 — 슈퍼 어드민 전용.
 //
 // GET /admin/students/credentials?school_id=<id|all>
 //   - school_id="" 또는 "all": 전체 학교
 //   - school_id="chosun-univ": 해당 학교만
 //
-// 컬럼: 대학교, 이름, 아이디, 이메일, 초기 비밀번호
-// 학생이 비번을 바꿔도 initial_password 컬럼은 그대로 유지 (변경 후 비번은 학생 본인 관리).
+// 컬럼: 대학교, 이름, 아이디, 이메일
+// 학생 비번은 본인이 이메일 인증으로 직접 설정 — 어드민이 알 필요 없음.
 
 import { NextResponse } from "next/server";
 import { recordAudit, requireAdmin } from "@/lib/auth";
@@ -15,12 +15,11 @@ function csvEscape(s: string): string {
   return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-interface CredRow {
+interface RosterRow {
   school_name: string;
   real_name: string;
   username: string | null;
   email: string | null;
-  initial_password: string;
 }
 
 export async function GET(request: Request): Promise<Response> {
@@ -34,21 +33,22 @@ export async function GET(request: Request): Promise<Response> {
   const isAll = schoolParam === "" || schoolParam === "all";
 
   const query = isAll
-    ? `SELECT sc.name AS school_name, s.real_name, s.username, s.email, s.initial_password
+    ? `SELECT sc.name AS school_name, s.real_name, s.username, s.email
          FROM students s JOIN schools sc ON sc.id = s.school_id
-        WHERE s.initial_password IS NOT NULL
+        WHERE s.username IS NOT NULL AND s.deactivated_at IS NULL
         ORDER BY sc.name, s.real_name`
-    : `SELECT sc.name AS school_name, s.real_name, s.username, s.email, s.initial_password
+    : `SELECT sc.name AS school_name, s.real_name, s.username, s.email
          FROM students s JOIN schools sc ON sc.id = s.school_id
-        WHERE s.initial_password IS NOT NULL AND s.school_id = $1
+        WHERE s.username IS NOT NULL AND s.deactivated_at IS NULL
+          AND s.school_id = $1
         ORDER BY s.real_name`;
   const params = isAll ? [] : [schoolParam];
 
-  const { rows } = await pool.query<CredRow>(query, params);
+  const { rows } = await pool.query<RosterRow>(query, params);
 
-  const header = "대학교,이름,아이디,이메일,초기 비밀번호";
+  const header = "대학교,이름,아이디,이메일";
   const lines = rows.map((r) =>
-    [r.school_name, r.real_name, r.username ?? "", r.email ?? "", r.initial_password]
+    [r.school_name, r.real_name, r.username ?? "", r.email ?? ""]
       .map(csvEscape)
       .join(","),
   );
@@ -57,13 +57,13 @@ export async function GET(request: Request): Promise<Response> {
 
   await recordAudit(
     me.username,
-    "students.credentials_download",
+    "students.roster_download",
     isAll ? "all" : schoolParam,
     { count: rows.length },
   );
 
   const ts = new Date().toISOString().slice(0, 10);
-  const filename = `kiro-initial-credentials-${isAll ? "all" : schoolParam}-${ts}.csv`;
+  const filename = `kiro-students-${isAll ? "all" : schoolParam}-${ts}.csv`;
 
   return new NextResponse(body, {
     status: 200,

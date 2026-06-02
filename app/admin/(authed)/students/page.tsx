@@ -170,20 +170,16 @@ export default async function StudentsPage({
         (학교 운영자 등) 발급 전용입니다. 이 계정은 랭킹에 노출되지 않습니다 (사용량 데이터 없음).
       </div>
 
-      {/* 초기 비밀번호 일괄 다운로드 (슈퍼 어드민 전용) */}
+      {/* 학생 명단 일괄 다운로드 (슈퍼 어드민 전용) */}
       {admin.role === "super" && (
         <details className="mb-6 rounded-lg bg-white ring-1 ring-[#eaeded] shadow-[0_1px_2px_rgba(0,28,36,0.05)]">
           <summary className="cursor-pointer px-5 py-3 text-[13.5px] font-semibold text-[#16191f] hover:bg-[#fafafa] select-none rounded-lg">
-            🔑 초기 비밀번호 일괄 다운로드
+            📋 학생 명단 다운로드
           </summary>
           <div className="px-5 pb-5 pt-2 space-y-3">
             <p className="text-[12.5px] text-[#5f6b7a] leading-relaxed">
-              sync 가 발급한 학생 초기 비번을 학교별로 CSV 추출 (Excel 호환 UTF-8 BOM).
-              컬럼: 대학교 / 이름 / 아이디 / 이메일 / 초기 비밀번호.
-              <br />
-              <strong>초기 비번은 학생이 바꿔도 그대로 표시됩니다</strong> — 변경 후 비번은 학생 본인이 비번 찾기로 관리.
-              <br />
-              <strong className="text-[#7c2c2c]">⚠ 민감 정보 — 다운로드 후 안전한 채널로 전달, 본인 디스크에서 즉시 삭제.</strong>
+              학교별 학생 명단 CSV (Excel 호환 UTF-8 BOM). 컬럼: 대학교 / 이름 / 아이디 / 이메일.
+              비번은 학생이 직접 이메일 인증으로 설정합니다.
             </p>
             <form
               method="get"
