@@ -111,7 +111,6 @@ const FORM_ERRORS: Record<string, string> = {
   required: "필수 항목이 비어있습니다.",
   username_format: "아이디 형식: 영문/숫자/._- 만 가능, 3~32자.",
   email_format: "이메일 형식이 올바르지 않습니다.",
-  password_short: "초기 비밀번호는 8자 이상이어야 합니다.",
   username_taken: "이미 사용 중인 아이디입니다.",
   email_taken: "이미 등록된 이메일입니다.",
   reset_invalid: "재발급 입력값이 올바르지 않습니다 (비번 8자 이상).",
@@ -261,10 +260,6 @@ export default async function StudentsPage({
 
             <FormField label="이메일" required>
               <Input name="email" type="email" placeholder="hong@school.kr" required />
-            </FormField>
-
-            <FormField label="초기 비밀번호 (8자 이상)" required>
-              <PasswordField name="initial_password" required minLength={8} />
             </FormField>
 
             <div className="flex items-end">

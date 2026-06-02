@@ -1,6 +1,6 @@
 "use server";
 
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
@@ -20,9 +20,16 @@ function isValidEmail(e: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 }
 
+// 학생이 실제로 사용할 비번은 본인이 이메일 인증으로 설정 — 어드민이 정할 필요 X.
+// must_change_password=true 로 INSERT 라 어차피 처음에 강제 리셋됨.
+function genRandomPassword(): string {
+  return randomBytes(24).toString("base64url");
+}
+
 // 뷰어 계정 발급 — Kiro 미사용자(학교 운영자 등) 가 랭킹을 볼 수 있게 슈퍼 어드민이 수동 생성.
 // user_id 는 항상 자동 생성 (IC sync 가 만든 학생과 충돌 방지).
 // cohort 는 IC API 가 제공하지 않으므로 UI/DB 둘 다 안 채움.
+// 비번은 자동 생성 — 학생이 첫 로그인 시 이메일 인증으로 본인 비번 설정.
 export async function createStudentAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
 
@@ -30,9 +37,8 @@ export async function createStudentAction(formData: FormData): Promise<void> {
   const realName = String(formData.get("real_name") ?? "").trim();
   const username = String(formData.get("username") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
-  const initialPassword = String(formData.get("initial_password") ?? "");
 
-  if (!schoolId || !realName || !username || !email || !initialPassword) {
+  if (!schoolId || !realName || !username || !email) {
     redirect("/admin/students?error=required");
   }
   // 항상 새 UUID 발급 — IC 사용자 UUID 와 충돌 가능성 사실상 0
@@ -44,13 +50,11 @@ export async function createStudentAction(formData: FormData): Promise<void> {
   if (!isValidEmail(email)) {
     redirect("/admin/students?error=email_format");
   }
-  if (initialPassword.length < 8) {
-    redirect("/admin/students?error=password_short");
-  }
 
   assertSchoolScope(admin.role, admin.schoolId, schoolId);
 
-  const passwordHash = await hashPassword(initialPassword);
+  // 학생이 첫 로그인 시 이메일 인증으로 본인 비번 설정 — 어차피 덮어써짐
+  const passwordHash = await hashPassword(genRandomPassword());
 
   try {
     await pool.query(
