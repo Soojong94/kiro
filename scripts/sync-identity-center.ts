@@ -202,21 +202,29 @@ async function syncConnection(conn: Connection, allNewCreds: NewCred[]): Promise
     }
 
     try {
-      // ON CONFLICT DO NOTHING — 기존 학생은 절대 건드리지 않음.
-      // 신규 학생만 INSERT 되면서 initial_password (평문) 도 같이 저장 →
-      // 어드민이 /admin/students 에서 학교별 일괄 다운로드 가능.
-      // initial_password 는 한 번 채워지면 영구 유지 (학생이 비번 바꿔도 안 건드림) —
-      // 어드민이 "최초 발급 비번이 뭐였더라" 다시 확인할 수 있게.
-      const inserted = await pool.query<{ user_id: string }>(
+      // ON CONFLICT DO UPDATE — IC 가 진리 원천. 학교 운영자가 IC 에서
+      // 이메일 / 이름 수정하면 다음 sync 에 자동 반영.
+      //
+      // 안 건드리는 필드 (학생 본인이 관리):
+      //   - username       — 학생 로그인 ID. IC 도 거의 안 바뀜.
+      //   - password_hash  — 학생이 본인 이메일 인증으로 설정.
+      //   - must_change_password — 학생이 직접 설정.
+      //   - initial_password — 신규 학생에게만 한 번 저장 (legacy, v1.2 후엔 의미 X).
+      //   - deactivated_at — 학생/어드민이 별도 관리.
+      //
+      // RETURNING 의 xmax=0 이면 INSERT (신규), 아니면 UPDATE (기존 학생 갱신).
+      const inserted = await pool.query<{ user_id: string; was_new: boolean }>(
         `INSERT INTO students
            (school_id, user_id, real_name, cohort, username, email,
             password_hash, must_change_password, initial_password)
          VALUES ($1, $2, $3, NULL, $4, $5, $6, true, $7)
-         ON CONFLICT (school_id, user_id) DO NOTHING
-         RETURNING user_id`,
+         ON CONFLICT (school_id, user_id) DO UPDATE SET
+           email     = EXCLUDED.email,
+           real_name = EXCLUDED.real_name
+         RETURNING user_id, (xmax = 0) AS was_new`,
         [groupName, uid, realName, username, email, passwordHash, plainPassword],
       );
-      const wasNew = inserted.rowCount === 1;
+      const wasNew = inserted.rows[0]?.was_new === true;
       if (wasNew && plainPassword && username && email) {
         allNewCreds.push({
           schoolId: groupName,
