@@ -71,9 +71,6 @@ export default async function StudentLoginPage({
               autoFocus
               className="w-full px-3 py-2 rounded-md ring-1 ring-[#d5dbdb] bg-white text-[14px] text-[#16191f] focus:outline-none focus:ring-2 focus:ring-[#0972d3]"
             />
-            <p className="mt-1.5 text-[11.5px] text-[#5f6b7a]">
-              처음이신가요? 등록된 이메일로 비밀번호 설정 안내를 보내드립니다.
-            </p>
           </div>
 
           {reset && !msg && (

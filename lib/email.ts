@@ -27,6 +27,18 @@ export async function sendMail(opts: {
   html: string;
   text: string;
 }): Promise<void> {
+  // dev 모드 (SES_REGION 미설정 = 로컬) — 콘솔에 본문 출력하고 SES 안 부름.
+  // 운영 .env 엔 SES_REGION=us-east-1 이라 자연스럽게 운영만 SES 호출.
+  // 토큰 URL 은 text 본문에 포함되어 있으니 콘솔에서 복사해 다음 단계 테스트.
+  if (!process.env.SES_REGION) {
+    console.log("\n━━━━━━━━━━ [DEV MAIL] (SES_REGION 미설정 → SES 호출 skip) ━━━━━━━━━━");
+    console.log(`To:      ${opts.to}`);
+    console.log(`Subject: ${opts.subject}`);
+    console.log("───────────────────────────────────────────────────");
+    console.log(opts.text);
+    console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
+    return;
+  }
   const client = getClient();
   await client.send(
     new SendEmailCommand({
