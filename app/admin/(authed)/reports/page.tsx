@@ -106,20 +106,20 @@ export default async function ReportsPage({
       : 0;
 
   return (
-    <main className="mx-auto max-w-6xl px-5 sm:px-6 py-8 lg:py-10 print:max-w-none print:px-[10px] print:py-0">
-      <header className="relative mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between print:mb-4 print:min-h-[58px]">
-        <div>
-          <p className="text-[12px] font-bold text-[#ec7211] print:text-[#414d5c]">
+    <main className="mx-auto max-w-6xl px-5 sm:px-6 py-8 lg:py-10 print:max-w-none print:px-[15px] print:py-0">
+      <header className="relative mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between print:mb-6 print:min-h-[92px] print:pt-8">
+        <div className="print:mx-auto print:text-center">
+          <p className="text-[12px] font-bold text-[#ec7211] print:text-[14px] print:text-[#414d5c]">
             Kiro Usage Report
           </p>
-          <h1 className="mt-1 text-[24px] sm:text-[28px] font-bold tracking-tight text-[#16191f]">
+          <h1 className="mt-1 text-[24px] sm:text-[28px] font-bold tracking-tight text-[#16191f] print:text-[36px]">
             학교별 사용 보고서
           </h1>
-          <p className="mt-1.5 text-[13px] text-[#5f6b7a]">
+          <p className="mt-1.5 text-[13px] text-[#5f6b7a] print:text-[15px]">
             {fmtDate(report.window.from)} ~ {fmtDate(report.window.to)} 기준
           </p>
         </div>
-        <div className="hidden print:absolute print:right-0 print:top-0 print:flex print:items-center print:gap-2">
+        <div className="hidden print:absolute print:right-0 print:top-8 print:flex print:items-center print:gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/kiro-logo.jpg"
