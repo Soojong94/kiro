@@ -208,16 +208,14 @@ export default async function ReportsPage({
         </div>
       </form>
 
-      {report.detail && <UsageTrend report={report.detail} />}
-
-      <section className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 print:mt-3 print:grid-cols-4 print:gap-2">
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4 print:grid-cols-4 print:gap-2">
         <MetricCard label="등록 학생" value={fmtNumber(totals.registeredStudents)} unit="명" />
         <MetricCard label="활성 학생" value={fmtNumber(totals.activeStudents)} unit={`명 · ${activeRate}%`} />
         <MetricCard label="총 크레딧" value={fmtNumber(totals.totalCredits, 1)} unit="credit" />
         <MetricCard label="총 메시지" value={fmtNumber(totals.totalMessages)} unit="건" />
       </section>
 
-      <section className="mt-6 rounded-lg bg-white p-4 sm:p-5 ring-1 ring-[#eaeded] shadow-[0_1px_2px_rgba(0,28,36,0.05)] print:mt-4 print:break-inside-avoid print:shadow-none">
+      <section className="mt-6 rounded-lg bg-white p-4 sm:p-5 ring-1 ring-[#eaeded] shadow-[0_1px_2px_rgba(0,28,36,0.05)] print:mt-3 print:p-3 print:shadow-none">
         <div className="mb-3 flex items-end justify-between gap-3">
           <div>
             <h2 className="text-[17px] font-bold text-[#16191f]">학교별 요약</h2>
@@ -263,6 +261,8 @@ export default async function ReportsPage({
           </table>
         </div>
       </section>
+
+      {report.detail && <UsageTrend report={report.detail} />}
 
       {report.detail ? (
         <SchoolDetail report={report.detail} />
