@@ -100,11 +100,6 @@ export default async function ReportsPage({
       overageCredits: 0,
     },
   );
-  const activeRate =
-    totals.registeredStudents > 0
-      ? Math.round((totals.activeStudents / totals.registeredStudents) * 1000) / 10
-      : 0;
-
   return (
     <main className="mx-auto max-w-6xl px-5 sm:px-6 py-8 lg:py-10 print:max-w-none print:px-[15px] print:py-0">
       <header className="relative mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between print:mb-6 print:min-h-[92px] print:pt-8">
@@ -226,9 +221,9 @@ export default async function ReportsPage({
 
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-4 print:grid-cols-4 print:gap-2">
         <MetricCard label="등록 학생" value={fmtNumber(totals.registeredStudents)} unit="명" />
-        <MetricCard label="활성 학생" value={fmtNumber(totals.activeStudents)} unit={`명 · ${activeRate}%`} />
         <MetricCard label="총 크레딧" value={fmtNumber(totals.totalCredits, 1)} unit="credit" />
         <MetricCard label="총 메시지" value={fmtNumber(totals.totalMessages)} unit="건" />
+        <MetricCard label="총 대화" value={fmtNumber(totals.totalConversations)} unit="건" />
       </section>
 
       <section className="mt-6 rounded-lg bg-white p-4 sm:p-5 ring-1 ring-[#eaeded] shadow-[0_1px_2px_rgba(0,28,36,0.05)] print:mt-3 print:p-3 print:shadow-none">
@@ -247,8 +242,6 @@ export default async function ReportsPage({
               <tr>
                 <Th>학교</Th>
                 <Th align="right">등록</Th>
-                <Th align="right">활성</Th>
-                <Th align="right">활성률</Th>
                 <Th align="right">메시지</Th>
                 <Th align="right">대화</Th>
                 <Th align="right">크레딧</Th>
@@ -265,8 +258,6 @@ export default async function ReportsPage({
                     )}
                   </Td>
                   <Td align="right">{fmtNumber(row.registeredStudents)}</Td>
-                  <Td align="right">{fmtNumber(row.activeStudents)}</Td>
-                  <Td align="right">{fmtNumber(row.activeRate, 1)}%</Td>
                   <Td align="right">{fmtNumber(row.totalMessages)}</Td>
                   <Td align="right">{fmtNumber(row.totalConversations)}</Td>
                   <Td align="right">{fmtNumber(row.totalCredits, 1)}</Td>
@@ -467,7 +458,7 @@ function StudentTable({
             ) : (
               rows.map((row) => (
                 <tr key={row.userId} className="border-b border-[#f4f5f6] last:border-0">
-                  <Td>{row.maskedName}</Td>
+                  <Td>{row.realName}</Td>
                   <Td align="right">
                     {metric === "credits" ? fmtNumber(row.totalCredits, 1) : fmtNumber(row.activeDays)}
                   </Td>

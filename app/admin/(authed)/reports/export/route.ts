@@ -76,8 +76,6 @@ export async function GET(request: NextRequest) {
     csvRow([
       "학교",
       "등록 학생",
-      "활성 학생",
-      "활성률(%)",
       "활성 일수",
       "총 메시지",
       "총 대화",
@@ -91,8 +89,6 @@ export async function GET(request: NextRequest) {
       csvRow([
         row.schoolName,
         row.registeredStudents,
-        row.activeStudents,
-        row.activeRate,
         row.activeDays,
         row.totalMessages,
         row.totalConversations,
@@ -139,7 +135,7 @@ export async function GET(request: NextRequest) {
     for (const row of report.detail.topCredits) {
       lines.push(
         csvRow([
-          row.maskedName,
+          row.realName,
           fmtNumber(row.totalCredits),
           row.activeDays,
           row.totalMessages,
@@ -153,7 +149,7 @@ export async function GET(request: NextRequest) {
     for (const row of report.detail.topAttendance) {
       lines.push(
         csvRow([
-          row.maskedName,
+          row.realName,
           row.activeDays,
           fmtNumber(row.totalCredits),
           row.totalMessages,

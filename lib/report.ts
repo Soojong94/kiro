@@ -1,4 +1,3 @@
-import { maskName } from "./mask";
 import { pool } from "./db";
 
 export type ReportPeriodPreset = "this_month" | "last_month" | "7d" | "custom";
@@ -45,7 +44,7 @@ export interface BreakdownRow {
 
 export interface StudentReportRow {
   userId: string;
-  maskedName: string;
+  realName: string;
   totalCredits: number;
   activeDays: number;
   totalMessages: number;
@@ -406,7 +405,7 @@ function toStudentRow(row: {
 }): StudentReportRow {
   return {
     userId: row.user_id,
-    maskedName: row.real_name ? maskName(row.real_name) : "미등록",
+    realName: row.real_name ?? "미등록",
     totalCredits: round1(Number(row.total_credits)),
     activeDays: Number(row.active_days),
     totalMessages: Number(row.total_messages),
