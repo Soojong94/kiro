@@ -60,7 +60,7 @@ export default async function AdminAuthedLayout({
   return (
     <div className="min-h-screen" style={{ background: "#fafafa" }}>
       <header
-        className="w-full"
+        className="w-full print:hidden"
         style={{
           background: "#232f3e",
           borderBottom: "1px solid rgba(255,255,255,0.08)",

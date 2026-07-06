@@ -106,7 +106,7 @@ export default async function ReportsPage({
       : 0;
 
   return (
-    <main className="mx-auto max-w-6xl px-5 sm:px-6 py-8 lg:py-10 print:max-w-none print:px-0 print:py-0">
+    <main className="mx-auto max-w-6xl px-5 sm:px-6 py-8 lg:py-10 print:max-w-none print:px-[10px] print:py-0">
       <header className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between print:mb-4">
         <div>
           <p className="text-[12px] font-bold text-[#ec7211] print:text-[#414d5c]">
@@ -208,14 +208,14 @@ export default async function ReportsPage({
         </div>
       </form>
 
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4 print:grid-cols-4 print:gap-2">
+      {report.detail && <UsageTrend report={report.detail} />}
+
+      <section className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 print:mt-3 print:grid-cols-4 print:gap-2">
         <MetricCard label="등록 학생" value={fmtNumber(totals.registeredStudents)} unit="명" />
         <MetricCard label="활성 학생" value={fmtNumber(totals.activeStudents)} unit={`명 · ${activeRate}%`} />
         <MetricCard label="총 크레딧" value={fmtNumber(totals.totalCredits, 1)} unit="credit" />
         <MetricCard label="총 메시지" value={fmtNumber(totals.totalMessages)} unit="건" />
       </section>
-
-      {report.detail && <UsageTrend report={report.detail} />}
 
       <section className="mt-6 rounded-lg bg-white p-4 sm:p-5 ring-1 ring-[#eaeded] shadow-[0_1px_2px_rgba(0,28,36,0.05)] print:mt-4 print:break-inside-avoid print:shadow-none">
         <div className="mb-3 flex items-end justify-between gap-3">
@@ -303,19 +303,19 @@ function UsageTrend({
   const maxDailyCredits = Math.max(...report.daily.map((d) => d.totalCredits), 0);
 
   return (
-    <section className="mt-6 rounded-lg bg-white p-4 sm:p-5 ring-1 ring-[#eaeded] shadow-[0_1px_2px_rgba(0,28,36,0.05)] print:mt-4 print:break-inside-avoid print:shadow-none">
+    <section className="mt-6 rounded-lg bg-white p-4 sm:p-5 ring-1 ring-[#eaeded] shadow-[0_1px_2px_rgba(0,28,36,0.05)] print:mt-2 print:p-3 print:shadow-none">
       <h2 className="text-[17px] font-bold text-[#16191f]">{report.schoolName} 사용량 추이</h2>
       <p className="mt-0.5 text-[12px] text-[#5f6b7a]">일자별 크레딧 사용량</p>
-      <div className="mt-4 grid gap-2">
+      <div className="mt-4 grid gap-2 print:mt-2 print:gap-1">
         {report.daily.length === 0 ? (
           <p className="py-6 text-center text-[13px] text-[#5f6b7a]">선택한 기간의 사용량이 없습니다.</p>
         ) : (
           report.daily.map((row) => (
-            <div key={row.date} className="grid grid-cols-[86px_1fr_88px] items-center gap-3 text-[12px]">
+            <div key={row.date} className="grid grid-cols-[86px_1fr_88px] items-center gap-3 text-[12px] print:grid-cols-[72px_1fr_72px] print:gap-2 print:text-[10.5px]">
               <span className="font-mono text-[#5f6b7a]">{row.date.slice(5)}</span>
-              <div className="h-6 rounded bg-[#f2f3f3]">
+              <div className="h-6 rounded bg-[#f2f3f3] print:h-4">
                 <div
-                  className="h-6 rounded bg-[#0972d3]"
+                  className="h-6 rounded bg-[#0972d3] print:h-4"
                   style={{
                     width: `${maxDailyCredits > 0 ? Math.max((row.totalCredits / maxDailyCredits) * 100, 2) : 0}%`,
                   }}
