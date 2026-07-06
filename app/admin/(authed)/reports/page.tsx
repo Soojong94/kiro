@@ -49,10 +49,17 @@ export default async function ReportsPage({
 }) {
   const admin = await requireAdmin();
   const sp = await searchParams;
-  const preset = pickPreset(sp.period);
+  const requestedPreset = pickPreset(sp.period);
   const selectedSchoolParam = single(sp.school);
   const fromParam = single(sp.from);
   const toParam = single(sp.to);
+  const presetWindow = reportWindow(requestedPreset, new Date());
+  const hasCustomDates =
+    !!fromParam &&
+    !!toParam &&
+    (fromParam !== presetWindow.from || toParam !== presetWindow.to);
+  const preset: ReportPeriodPreset =
+    requestedPreset === "custom" || hasCustomDates ? "custom" : requestedPreset;
   const window = reportWindow(preset, new Date(), {
     from: fromParam,
     to: toParam,
@@ -114,6 +121,17 @@ export default async function ReportsPage({
         </div>
         <div className="flex gap-2 print:hidden">
           <PrintButton />
+          <Link
+            href={`/admin/reports/export?${new URLSearchParams({
+              period: preset,
+              school: selectedSchoolId,
+              from: report.window.from,
+              to: report.window.to,
+            }).toString()}`}
+            className="px-3 py-2 rounded-md bg-[#0972d3] text-white text-[12.5px] font-semibold hover:bg-[#033160]"
+          >
+            엑셀 다운로드
+          </Link>
           <Link
             href="/admin"
             className="px-3 py-2 rounded-md bg-white ring-1 ring-[#d5dbdb] text-[12.5px] font-semibold text-[#414d5c] hover:bg-[#f2f3f3]"
@@ -197,6 +215,8 @@ export default async function ReportsPage({
         <MetricCard label="총 메시지" value={fmtNumber(totals.totalMessages)} unit="건" />
       </section>
 
+      {report.detail && <UsageTrend report={report.detail} />}
+
       <section className="mt-6 rounded-lg bg-white p-4 sm:p-5 ring-1 ring-[#eaeded] shadow-[0_1px_2px_rgba(0,28,36,0.05)] print:mt-4 print:break-inside-avoid print:shadow-none">
         <div className="mb-3 flex items-end justify-between gap-3">
           <div>
@@ -260,37 +280,8 @@ function SchoolDetail({
 }: {
   report: NonNullable<Awaited<ReturnType<typeof loadUsageReport>>["detail"]>;
 }) {
-  const maxDailyCredits = Math.max(...report.daily.map((d) => d.totalCredits), 0);
-
   return (
     <section className="mt-6 grid gap-6 print:gap-4">
-      <div className="rounded-lg bg-white p-4 sm:p-5 ring-1 ring-[#eaeded] shadow-[0_1px_2px_rgba(0,28,36,0.05)] print:break-inside-avoid print:shadow-none">
-        <h2 className="text-[17px] font-bold text-[#16191f]">{report.schoolName} 상세</h2>
-        <p className="mt-0.5 text-[12px] text-[#5f6b7a]">일자별 활성 학생과 크레딧 추이</p>
-        <div className="mt-4 grid gap-2">
-          {report.daily.length === 0 ? (
-            <p className="py-6 text-center text-[13px] text-[#5f6b7a]">선택한 기간의 사용량이 없습니다.</p>
-          ) : (
-            report.daily.map((row) => (
-              <div key={row.date} className="grid grid-cols-[86px_1fr_88px] items-center gap-3 text-[12px]">
-                <span className="font-mono text-[#5f6b7a]">{row.date.slice(5)}</span>
-                <div className="h-6 rounded bg-[#f2f3f3]">
-                  <div
-                    className="h-6 rounded bg-[#0972d3]"
-                    style={{
-                      width: `${maxDailyCredits > 0 ? Math.max((row.totalCredits / maxDailyCredits) * 100, 2) : 0}%`,
-                    }}
-                  />
-                </div>
-                <span className="text-right tabular-nums text-[#414d5c]">
-                  {fmtNumber(row.totalCredits, 1)}
-                </span>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-
       <div className="grid gap-6 lg:grid-cols-2 print:grid-cols-2 print:gap-4">
         <BreakdownCard title="클라이언트별 크레딧" rows={report.clients} unit="credit" />
         <BreakdownCard title="모델별 메시지" rows={report.models} unit="건" />
@@ -299,6 +290,43 @@ function SchoolDetail({
       <div className="grid gap-6 lg:grid-cols-2 print:grid-cols-2 print:gap-4">
         <StudentTable title="크레딧 상위 학생" rows={report.topCredits} metric="credits" />
         <StudentTable title="출석일 상위 학생" rows={report.topAttendance} metric="days" />
+      </div>
+    </section>
+  );
+}
+
+function UsageTrend({
+  report,
+}: {
+  report: NonNullable<Awaited<ReturnType<typeof loadUsageReport>>["detail"]>;
+}) {
+  const maxDailyCredits = Math.max(...report.daily.map((d) => d.totalCredits), 0);
+
+  return (
+    <section className="mt-6 rounded-lg bg-white p-4 sm:p-5 ring-1 ring-[#eaeded] shadow-[0_1px_2px_rgba(0,28,36,0.05)] print:mt-4 print:break-inside-avoid print:shadow-none">
+      <h2 className="text-[17px] font-bold text-[#16191f]">{report.schoolName} 사용량 추이</h2>
+      <p className="mt-0.5 text-[12px] text-[#5f6b7a]">일자별 크레딧 사용량</p>
+      <div className="mt-4 grid gap-2">
+        {report.daily.length === 0 ? (
+          <p className="py-6 text-center text-[13px] text-[#5f6b7a]">선택한 기간의 사용량이 없습니다.</p>
+        ) : (
+          report.daily.map((row) => (
+            <div key={row.date} className="grid grid-cols-[86px_1fr_88px] items-center gap-3 text-[12px]">
+              <span className="font-mono text-[#5f6b7a]">{row.date.slice(5)}</span>
+              <div className="h-6 rounded bg-[#f2f3f3]">
+                <div
+                  className="h-6 rounded bg-[#0972d3]"
+                  style={{
+                    width: `${maxDailyCredits > 0 ? Math.max((row.totalCredits / maxDailyCredits) * 100, 2) : 0}%`,
+                  }}
+                />
+              </div>
+              <span className="text-right tabular-nums text-[#414d5c]">
+                {fmtNumber(row.totalCredits, 1)}
+              </span>
+            </div>
+          ))
+        )}
       </div>
     </section>
   );
