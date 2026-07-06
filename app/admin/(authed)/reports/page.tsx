@@ -306,16 +306,16 @@ function UsageTrend({
     <section className="mt-6 rounded-lg bg-white p-4 sm:p-5 ring-1 ring-[#eaeded] shadow-[0_1px_2px_rgba(0,28,36,0.05)] print:mt-2 print:p-3 print:shadow-none">
       <h2 className="text-[17px] font-bold text-[#16191f]">{report.schoolName} 사용량 추이</h2>
       <p className="mt-0.5 text-[12px] text-[#5f6b7a]">일자별 크레딧 사용량</p>
-      <div className="mt-4 grid gap-2 print:mt-2 print:gap-1">
+      <div className="mt-4 grid gap-2 print:hidden">
         {report.daily.length === 0 ? (
           <p className="py-6 text-center text-[13px] text-[#5f6b7a]">선택한 기간의 사용량이 없습니다.</p>
         ) : (
           report.daily.map((row) => (
-            <div key={row.date} className="grid grid-cols-[86px_1fr_88px] items-center gap-3 text-[12px] print:grid-cols-[72px_1fr_72px] print:gap-2 print:text-[10.5px]">
+            <div key={row.date} className="grid grid-cols-[86px_1fr_88px] items-center gap-3 text-[12px]">
               <span className="font-mono text-[#5f6b7a]">{row.date.slice(5)}</span>
-              <div className="h-6 rounded bg-[#f2f3f3] print:h-4">
+              <div className="h-6 rounded bg-[#f2f3f3]">
                 <div
-                  className="h-6 rounded bg-[#0972d3] print:h-4"
+                  className="h-6 rounded bg-[#0972d3]"
                   style={{
                     width: `${maxDailyCredits > 0 ? Math.max((row.totalCredits / maxDailyCredits) * 100, 2) : 0}%`,
                   }}
@@ -326,6 +326,34 @@ function UsageTrend({
               </span>
             </div>
           ))
+        )}
+      </div>
+      <div className="hidden print:block print:mt-2">
+        {report.daily.length === 0 ? (
+          <p className="py-3 text-center text-[11px] text-[#5f6b7a]">선택한 기간의 사용량이 없습니다.</p>
+        ) : (
+          <table className="w-full text-[9.5px]">
+            <thead className="border-y border-[#eaeded] bg-[#fafafa] text-[#5f6b7a]">
+              <tr>
+                <Th>날짜</Th>
+                <Th align="right">활성</Th>
+                <Th align="right">메시지</Th>
+                <Th align="right">대화</Th>
+                <Th align="right">크레딧</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {report.daily.map((row) => (
+                <tr key={row.date} className="border-b border-[#f4f5f6]">
+                  <Td>{row.date.slice(5)}</Td>
+                  <Td align="right">{fmtNumber(row.activeStudents)}</Td>
+                  <Td align="right">{fmtNumber(row.totalMessages)}</Td>
+                  <Td align="right">{fmtNumber(row.totalConversations)}</Td>
+                  <Td align="right">{fmtNumber(row.totalCredits, 1)}</Td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
     </section>
