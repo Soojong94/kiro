@@ -11,6 +11,7 @@ import { logoutAction } from "../login/actions";
 
 const NAV_ITEMS: { href: string; label: string; superOnly?: boolean }[] = [
   { href: "/admin", label: "대시보드" },
+  { href: "/admin/reports", label: "보고서" },
   { href: "/admin/students", label: "학생 계정" },
   { href: "/admin/schools", label: "학교", superOnly: true },
   { href: "/admin/connections", label: "AWS 연결", superOnly: true },
