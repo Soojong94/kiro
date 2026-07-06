@@ -107,7 +107,7 @@ export default async function ReportsPage({
 
   return (
     <main className="mx-auto max-w-6xl px-5 sm:px-6 py-8 lg:py-10 print:max-w-none print:px-[10px] print:py-0">
-      <header className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between print:mb-4">
+      <header className="relative mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between print:mb-4 print:min-h-[58px]">
         <div>
           <p className="text-[12px] font-bold text-[#ec7211] print:text-[#414d5c]">
             Kiro Usage Report
@@ -118,6 +118,22 @@ export default async function ReportsPage({
           <p className="mt-1.5 text-[13px] text-[#5f6b7a]">
             {fmtDate(report.window.from)} ~ {fmtDate(report.window.to)} 기준
           </p>
+        </div>
+        <div className="hidden print:absolute print:right-0 print:top-0 print:flex print:items-center print:gap-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/kiro-logo.jpg"
+            alt="AWS Kiro"
+            className="h-9 w-auto rounded border border-[#eaeded]"
+          />
+          <div className="flex h-9 items-center rounded bg-[#232f3e] px-2.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo-tbit-white.png"
+              alt="으뜸정보기술"
+              className="h-5 w-auto"
+            />
+          </div>
         </div>
         <div className="flex gap-2 print:hidden">
           <PrintButton />
