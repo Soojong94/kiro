@@ -75,7 +75,7 @@ export default async function PublicDashboard({
 
   const now = new Date();
   const [usage, students, allSchools] = await Promise.all([
-    loadDailyUsage(30),
+    loadDailyUsage(365),
     loadStudents(),
     loadSchools({ includeInternal: true }), // 본교 필터/매핑용으로 사내도 일단 다 받아옴
   ]);
